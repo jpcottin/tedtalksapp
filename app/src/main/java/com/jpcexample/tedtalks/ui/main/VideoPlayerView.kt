@@ -74,7 +74,7 @@ fun VideoPlayerView(
     var isFullscreen by remember { mutableStateOf(false) }
 
     // Create a permissive OkHttpClient to handle emulator SSL issues (Demo Only)
-    // Some emulator images lack the latest root CA certificates required for TED's CDN
+    // In case images lack the latest root CA certificates required for TED's CDN
     val okHttpClient = remember {
         try {
             val trustAllCerts = arrayOf<TrustManager>(object : X509TrustManager {
