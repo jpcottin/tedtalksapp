@@ -25,6 +25,15 @@ A high-fidelity Android demonstration app centered around the official [TED Talk
 - **Networking:** [OkHttp](https://square.github.io/okhttp/)
 - **Architecture:** Clean Architecture with ViewModel and Flow-based State Management.
 
+## 🛠 XR Video Playback (Bug Fix)
+
+A specific bug was identified where video playback would fail (invisible/black screen) specifically on the Android XR emulator. 
+
+- **The Problem:** The default Media3 `SurfaceView` implementation uses hardware "hole punching" which conflicted with the spatial compositor in the XR environment. Additionally, some emulator images lacked the root CA certificates required to trust TED's video CDN.
+- **The Workaround:** 
+    1. Switched the rendering surface from `SurfaceView` to `TextureView` via a custom `view_player.xml` layout to ensure compatibility with 3D spatial compositing.
+    2. Implemented a permissive `OkHttpClient` for the `ProgressiveMediaSource` to bypass SSL trust anchor issues common in demo/emulator environments.
+
 ## 📱 Previews & Testing
 
 - **Compose Previews:** Key UI components like `TalkListPane` and `TalkDetailPane` are annotated with `@Preview` for rapid iteration and design verification without an emulator.

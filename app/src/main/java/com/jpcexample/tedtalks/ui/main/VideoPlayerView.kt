@@ -1,8 +1,10 @@
 package com.jpcexample.tedtalks.ui.main
 
 import android.content.Context
+import android.view.LayoutInflater
 import android.view.ViewGroup
 import android.view.ViewGroup.LayoutParams.MATCH_PARENT
+import com.jpcexample.tedtalks.R
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.focusable
@@ -39,6 +41,14 @@ import android.view.KeyEvent as AndroidKeyEvent
 import androidx.compose.ui.platform.LocalInspectionMode
 import androidx.compose.ui.tooling.preview.Preview
 
+import androidx.media3.datasource.okhttp.OkHttpDataSource
+import okhttp3.OkHttpClient
+import java.security.SecureRandom
+import java.security.cert.X509Certificate
+import javax.net.ssl.SSLContext
+import javax.net.ssl.TrustManager
+import javax.net.ssl.X509TrustManager
+
 @androidx.annotation.OptIn(androidx.media3.common.util.UnstableApi::class)
 @Composable
 fun VideoPlayerView(
@@ -63,18 +73,43 @@ fun VideoPlayerView(
     val lifecycleOwner = LocalLifecycleOwner.current
     var isFullscreen by remember { mutableStateOf(false) }
 
+    // Create a permissive OkHttpClient to handle emulator SSL issues (Demo Only)
+    // Some emulator images lack the latest root CA certificates required for TED's CDN
+    val okHttpClient = remember {
+        try {
+            val trustAllCerts = arrayOf<TrustManager>(object : X509TrustManager {
+                override fun checkClientTrusted(chain: Array<out X509Certificate>?, authType: String?) {}
+                override fun checkServerTrusted(chain: Array<out X509Certificate>?, authType: String?) {}
+                override fun getAcceptedIssuers(): Array<X509Certificate> = arrayOf()
+            })
+            val sslContext = SSLContext.getInstance("SSL")
+            sslContext.init(null, trustAllCerts, SecureRandom())
+            OkHttpClient.Builder()
+                .sslSocketFactory(sslContext.socketFactory, trustAllCerts[0] as X509TrustManager)
+                .hostnameVerifier { _, _ -> true }
+                .build()
+        } catch (e: Exception) {
+            OkHttpClient()
+        }
+    }
+
     val exoPlayer = remember(videoUrl) {
+        val dataSourceFactory = OkHttpDataSource.Factory(okHttpClient)
+        
+        val mediaSource = androidx.media3.exoplayer.source.ProgressiveMediaSource.Factory(dataSourceFactory)
+            .createMediaSource(MediaItem.fromUri(videoUrl))
+
         ExoPlayer.Builder(context).build().apply {
-            setMediaItem(MediaItem.fromUri(videoUrl))
+            setMediaSource(mediaSource)
             prepare()
             playWhenReady = true
         }
     }
 
     val playerView = remember(context) {
-        PlayerView(context).apply {
+        val view = LayoutInflater.from(context).inflate(R.layout.view_player, null) as PlayerView
+        view.apply {
             player = exoPlayer
-            useController = true
             keepScreenOn = true
             layoutParams = ViewGroup.LayoutParams(MATCH_PARENT, MATCH_PARENT)
         }
