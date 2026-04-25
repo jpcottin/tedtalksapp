@@ -1,8 +1,10 @@
 package com.jpcexample.tedtalks.ui.main
 
 import android.content.Context
+import android.view.LayoutInflater
 import android.view.ViewGroup
 import android.view.ViewGroup.LayoutParams.MATCH_PARENT
+import com.jpcexample.tedtalks.R
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.focusable
@@ -72,9 +74,8 @@ fun VideoPlayerView(
     }
 
     val playerView = remember(context) {
-        PlayerView(context).apply {
+        (LayoutInflater.from(context).inflate(R.layout.view_player, null) as PlayerView).apply {
             player = exoPlayer
-            useController = true
             keepScreenOn = true
             layoutParams = ViewGroup.LayoutParams(MATCH_PARENT, MATCH_PARENT)
         }

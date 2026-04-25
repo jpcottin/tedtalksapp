@@ -25,6 +25,16 @@ A high-fidelity Android demonstration app centered around the official [TED Talk
 - **Networking:** [OkHttp](https://square.github.io/okhttp/)
 - **Architecture:** Clean Architecture with ViewModel and Flow-based State Management.
 
+## 🎥 XR Video Playback
+
+Two issues specific to Android XR preview emulator builds are addressed in this branch:
+
+**Surface rendering (black video area)**
+`SurfaceView` uses hardware hole-punching which conflicts with the XR spatial compositor, producing a black rectangle where the video should appear. Switching to `TextureView` via a custom `view_player.xml` layout (`app:surface_type="texture_view"`) composites the video correctly into the XR panel.
+
+**SSL trust anchor (Sectigo Root R46)**
+The XR emulator system image ships without Sectigo Public Server Authentication Root R46, the root CA that signs TED's video CDN (`download.ted.com`). A `network_security_config.xml` bundles this certificate scoped to `ted.com` and `feedburner.com` only. SSL validation is fully preserved for all other domains.
+
 ## 📱 Previews & Testing
 
 - **Compose Previews:** Key UI components like `TalkListPane` and `TalkDetailPane` are annotated with `@Preview` for rapid iteration and design verification without an emulator.

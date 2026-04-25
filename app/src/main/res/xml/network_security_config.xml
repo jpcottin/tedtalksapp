@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<network-security-config>
+    <!--
+        TED's video CDN (download.ted.com) is signed by Sectigo Root R46, which is absent
+        from some Android emulator system images (notably Android XR preview builds).
+        Bundling the root CA here restores SSL validation for these domains without
+        disabling certificate verification globally.
+    -->
+    <domain-config>
+        <domain includeSubdomains="true">ted.com</domain>
+        <domain includeSubdomains="true">feedburner.com</domain>
+        <trust-anchors>
+            <certificates src="system" />
+            <certificates src="@raw/sectigo_root_r46" />
+        </trust-anchors>
+    </domain-config>
+</network-security-config>
