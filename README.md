@@ -34,9 +34,9 @@ A high-fidelity Android demonstration app centered around the official [TED Talk
 
 ## 📱 Screenshots
 
-| Google TV | Android XR | Foldable (Inner) |
-|-----------|------------|------------------|
-| ![TV](docs/screenshot_tv.png) | ![XR](docs/screenshot_xr.png) | ![Foldable](docs/screenshot_foldable.png) |
+| Phone | Foldable (Inner) | Android XR | Google TV |
+|-------|------------------|------------|-----------|
+| ![Phone](docs/screenshot_phone.png) | ![Foldable](docs/screenshot_foldable.png) | ![XR](docs/screenshot_xr.png) | ![TV](docs/screenshot_tv.png) |
 
 ## 🛠 Getting Started
 
