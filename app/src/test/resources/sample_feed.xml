@@ -1,0 +1,16 @@
+<rss xmlns:itunes="http://www.itunes.com/dtds/podcast-1.0.dtd" xmlns:media="http://search.yahoo.com/mrss/" version="2.0">
+    <channel>
+        <title>TEDTalks (video)</title>
+        <item>
+            <title>Hamish McKenzie | This is what the future of media looks like</title>
+            <description>Hamish McKenzie discusses the future of media.</description>
+            <link>https://www.ted.com/talks/hamish_mckenzie_this_is_what_the_future_of_media_looks_like</link>
+            <pubDate>Wed, 21 May 2025 15:00:00 +0000</pubDate>
+            <guid isPermaLink="false">12345</guid>
+            <itunes:author>Hamish McKenzie</itunes:author>
+            <itunes:duration>00:10:58</itunes:duration>
+            <media:thumbnail url="https://example.com/image.jpg"/>
+            <media:content url="https://example.com/video.mp4" type="video/mp4"/>
+        </item>
+    </channel>
+</rss>
