@@ -49,6 +49,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.media3.exoplayer.ExoPlayer
 import coil3.compose.AsyncImage
 import com.jpcexample.tedtalks.data.TalkItem
 import com.jpcexample.tedtalks.theme.MyApplicationTheme
@@ -60,6 +61,7 @@ fun TalkDetailPane(
     showBackButton: Boolean,
     onBack: () -> Unit,
     modifier: Modifier = Modifier,
+    getExoPlayer: ((String) -> ExoPlayer)? = null,
 ) {
     val context = LocalContext.current
     val scrollState = rememberScrollState()
@@ -74,9 +76,9 @@ fun TalkDetailPane(
     ) {
         // Hero / video area
         Box(modifier = Modifier.fillMaxWidth()) {
-            if (isPlayerVisible && talk.videoUrl != null) {
+            if (isPlayerVisible && talk.videoUrl != null && getExoPlayer != null) {
                 VideoPlayerView(
-                    videoUrl = talk.videoUrl,
+                    exoPlayer = getExoPlayer(talk.videoUrl),
                     modifier = Modifier
                         .fillMaxWidth()
                         .aspectRatio(16f / 9f),

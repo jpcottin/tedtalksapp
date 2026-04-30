@@ -10,14 +10,28 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import kotlinx.coroutines.launch
 
+import android.content.Context
+import android.content.ContextWrapper
+import androidx.activity.ComponentActivity
+
+tailrec fun Context.getActivity(): ComponentActivity? = when (this) {
+    is ComponentActivity -> this
+    is ContextWrapper -> baseContext.getActivity()
+    else -> null
+}
+
 @OptIn(ExperimentalMaterial3AdaptiveApi::class)
 @Composable
-fun MainScreen(modifier: Modifier = Modifier) {
-    val viewModel: TedTalksViewModel = viewModel()
+fun MainScreen(
+    viewModel: TedTalksViewModel,
+    modifier: Modifier = Modifier
+) {
+    val context = LocalContext.current
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val selectedTalkId by viewModel.selectedTalkId.collectAsStateWithLifecycle()
 
@@ -65,6 +79,7 @@ fun MainScreen(modifier: Modifier = Modifier) {
                                 viewModel.clearSelection()
                             }
                         },
+                        getExoPlayer = { url -> viewModel.getExoPlayer(context, url) }
                     )
                 } else {
                     EmptyDetailPlaceholder()
