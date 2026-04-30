@@ -41,10 +41,12 @@ import android.view.KeyEvent as AndroidKeyEvent
 import androidx.compose.ui.platform.LocalInspectionMode
 import androidx.compose.ui.tooling.preview.Preview
 
+import android.util.Log
+
 @androidx.annotation.OptIn(androidx.media3.common.util.UnstableApi::class)
 @Composable
 fun VideoPlayerView(
-    videoUrl: String,
+    exoPlayer: ExoPlayer?,
     modifier: Modifier = Modifier,
 ) {
     if (LocalInspectionMode.current) {
@@ -61,63 +63,56 @@ fun VideoPlayerView(
         return
     }
 
+    Log.d("VideoPlayerView", "VideoPlayerView Composed. Player state: ${exoPlayer?.playbackState}, position: ${exoPlayer?.currentPosition}")
+
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
     var isFullscreen by remember { mutableStateOf(false) }
-
-    val exoPlayer = remember(videoUrl) {
-        ExoPlayer.Builder(context).build().apply {
-            setMediaItem(MediaItem.fromUri(videoUrl))
-            prepare()
-            playWhenReady = true
-        }
-    }
-
-    val playerView = remember(context) {
-        (LayoutInflater.from(context).inflate(R.layout.view_player, null) as PlayerView).apply {
-            player = exoPlayer
-            keepScreenOn = true
-            layoutParams = ViewGroup.LayoutParams(MATCH_PARENT, MATCH_PARENT)
-        }
-    }
 
     val focusRequester = remember { FocusRequester() }
 
     DisposableEffect(lifecycleOwner) {
         val observer = LifecycleEventObserver { _, event ->
-            if (event == Lifecycle.Event.ON_PAUSE) exoPlayer.pause()
+            Log.d("VideoPlayerView", "Lifecycle event: $event")
+            if (event == Lifecycle.Event.ON_PAUSE) {
+                Log.d("VideoPlayerView", "Pausing ExoPlayer")
+                exoPlayer?.pause()
+            }
         }
         lifecycleOwner.lifecycle.addObserver(observer)
         onDispose {
+            Log.d("VideoPlayerView", "onDispose called")
             lifecycleOwner.lifecycle.removeObserver(observer)
-            exoPlayer.release()
         }
     }
 
-    val viewFactory: (Context) -> PlayerView = {
-        (playerView.parent as? ViewGroup)?.removeView(playerView)
-        playerView
+    val viewFactory: (Context) -> PlayerView = { ctx ->
+        Log.d("VideoPlayerView", "Creating PlayerView")
+        (LayoutInflater.from(ctx).inflate(R.layout.view_player, null) as PlayerView).apply {
+            keepScreenOn = true
+            layoutParams = ViewGroup.LayoutParams(MATCH_PARENT, MATCH_PARENT)
+        }
     }
 
-    if (isFullscreen) {
+    if (isFullscreen && exoPlayer != null) {
         FullscreenPlayerDialog(
-            playerView = playerView,
+            exoPlayer = exoPlayer,
             onDismiss = { isFullscreen = false }
         )
     } else {
         AndroidView(
             factory = viewFactory,
             update = { pv ->
+                Log.d("VideoPlayerView", "AndroidView update called. attaching player")
+                if (pv.player != exoPlayer) {
+                    pv.player = exoPlayer
+                }
                 pv.setFullscreenButtonState(false)
                 pv.setFullscreenButtonClickListener { isFullscreen = true }
             },
             modifier = modifier
                 .focusRequester(focusRequester)
-                .focusable()
-                .onKeyEvent { event ->
-                    if (event.nativeKeyEvent.keyCode == AndroidKeyEvent.KEYCODE_BACK) false
-                    else playerView.dispatchKeyEvent(event.nativeKeyEvent)
-                },
+                .focusable(),
         )
     }
 }
@@ -125,7 +120,7 @@ fun VideoPlayerView(
 @androidx.annotation.OptIn(androidx.media3.common.util.UnstableApi::class)
 @Composable
 private fun FullscreenPlayerDialog(
-    playerView: PlayerView,
+    exoPlayer: ExoPlayer,
     onDismiss: () -> Unit,
 ) {
     BackHandler(onBack = onDismiss)
@@ -157,21 +152,22 @@ private fun FullscreenPlayerDialog(
                 .background(Color.Black),
         ) {
             AndroidView(
-                factory = {
-                    (playerView.parent as? ViewGroup)?.removeView(playerView)
-                    playerView
+                factory = { ctx ->
+                    (LayoutInflater.from(ctx).inflate(R.layout.view_player, null) as PlayerView).apply {
+                        keepScreenOn = true
+                        layoutParams = ViewGroup.LayoutParams(MATCH_PARENT, MATCH_PARENT)
+                    }
                 },
                 update = { pv ->
+                    if (pv.player != exoPlayer) {
+                        pv.player = exoPlayer
+                    }
                     pv.setFullscreenButtonState(true)
                     pv.setFullscreenButtonClickListener { onDismiss() }
                 },
                 modifier = Modifier
                     .fillMaxSize()
-                    .focusable()
-                    .onKeyEvent { event ->
-                        if (event.nativeKeyEvent.keyCode == AndroidKeyEvent.KEYCODE_BACK) false
-                        else playerView.dispatchKeyEvent(event.nativeKeyEvent)
-                    },
+                    .focusable(),
             )
         }
     }
@@ -181,6 +177,6 @@ private fun FullscreenPlayerDialog(
 @Composable
 fun VideoPlayerViewPreview() {
     com.jpcexample.tedtalks.theme.MyApplicationTheme {
-        VideoPlayerView(videoUrl = "", modifier = Modifier.fillMaxSize())
+        VideoPlayerView(exoPlayer = null, modifier = Modifier.fillMaxSize())
     }
 }

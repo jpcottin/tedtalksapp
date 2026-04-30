@@ -23,7 +23,7 @@
         <activity
             android:name=".MainActivity"
             android:exported="true"
-            android:configChanges="orientation|screenSize|screenLayout|keyboardHidden">
+            android:configChanges="mcc|mnc|locale|touchscreen|keyboard|keyboardHidden|navigation|screenLayout|fontScale|uiMode|orientation|density|screenSize|smallestScreenSize|colorMode|layoutDirection">
             <!-- Phone / tablet / XR launcher -->
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />

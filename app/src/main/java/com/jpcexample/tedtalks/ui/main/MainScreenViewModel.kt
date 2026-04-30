@@ -1,7 +1,10 @@
 package com.jpcexample.tedtalks.ui.main
 
+import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import androidx.media3.common.MediaItem
+import androidx.media3.exoplayer.ExoPlayer
 import com.jpcexample.tedtalks.data.TalkItem
 import com.jpcexample.tedtalks.data.TedTalksRepository
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -18,6 +21,9 @@ class TedTalksViewModel : ViewModel() {
 
     private val _selectedTalkId = MutableStateFlow<String?>(null)
     val selectedTalkId: StateFlow<String?> = _selectedTalkId.asStateFlow()
+
+    private var exoPlayer: ExoPlayer? = null
+    private var currentVideoUrl: String? = null
 
     init {
         loadTalks()
@@ -38,6 +44,26 @@ class TedTalksViewModel : ViewModel() {
 
     fun clearSelection() {
         _selectedTalkId.value = null
+        exoPlayer?.pause()
+    }
+
+    fun getExoPlayer(context: Context, videoUrl: String): ExoPlayer {
+        val player = exoPlayer ?: ExoPlayer.Builder(context.applicationContext).build().also {
+            exoPlayer = it
+        }
+        if (currentVideoUrl != videoUrl) {
+            currentVideoUrl = videoUrl
+            player.setMediaItem(MediaItem.fromUri(videoUrl))
+            player.prepare()
+            player.playWhenReady = true
+        }
+        return player
+    }
+
+    override fun onCleared() {
+        super.onCleared()
+        exoPlayer?.release()
+        exoPlayer = null
     }
 }
 

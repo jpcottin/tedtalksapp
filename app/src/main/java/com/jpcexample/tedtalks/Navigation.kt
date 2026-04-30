@@ -11,9 +11,10 @@ import androidx.navigation3.runtime.entryProvider
 import androidx.navigation3.runtime.rememberNavBackStack
 import androidx.navigation3.ui.NavDisplay
 import com.jpcexample.tedtalks.ui.main.MainScreen
+import com.jpcexample.tedtalks.ui.main.TedTalksViewModel
 
 @Composable
-fun MainNavigation() {
+fun MainNavigation(viewModel: TedTalksViewModel) {
     val backStack = rememberNavBackStack(Main)
     val isTV = LocalConfiguration.current.uiMode and
             Configuration.UI_MODE_TYPE_MASK == Configuration.UI_MODE_TYPE_TELEVISION
@@ -24,6 +25,7 @@ fun MainNavigation() {
         entryProvider = entryProvider {
             entry<Main> {
                 MainScreen(
+                    viewModel = viewModel,
                     modifier = Modifier
                         .fillMaxSize()
                         // TV overscan safe area: 48dp horizontal, 27dp vertical
