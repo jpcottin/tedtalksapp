@@ -31,9 +31,10 @@ class MainNavigationTest {
 
     @Test
     fun navGraph_rendersListWithoutCrashing() {
+        val viewModel = TedTalksViewModel(StaticRepo(talks))
         composeTestRule.setContent {
             MyApplicationTheme {
-                MainNavigation(viewModel = TedTalksViewModel(StaticRepo(talks)))
+                MainNavigation(viewModel = viewModel)
             }
         }
         composeTestRule.waitForIdle()
@@ -43,9 +44,10 @@ class MainNavigationTest {
 
     @Test
     fun navGraph_tappingListItemNavigatesToDetail() {
+        val viewModel = TedTalksViewModel(StaticRepo(talks))
         composeTestRule.setContent {
             MyApplicationTheme {
-                MainNavigation(viewModel = TedTalksViewModel(StaticRepo(talks)))
+                MainNavigation(viewModel = viewModel)
             }
         }
         composeTestRule.waitForIdle()
