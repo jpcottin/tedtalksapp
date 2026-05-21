@@ -7,17 +7,21 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.PlayArrow
@@ -27,6 +31,7 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
@@ -47,8 +52,9 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.unit.dp
+import androidx.compose.ui.tooling.preview.Devices
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
 import com.jpcexample.tedtalks.data.TalkItem
 import com.jpcexample.tedtalks.theme.MyApplicationTheme
@@ -62,43 +68,52 @@ fun TalkListPane(
     onRetry: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    Column(modifier = modifier.fillMaxSize()) {
-        TopAppBar(
-            title = {
-                Text(
-                    text = "TED Talks",
-                    style = MaterialTheme.typography.headlineSmall,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.primary,
-                )
-            },
-            colors = TopAppBarDefaults.topAppBarColors(
-                containerColor = MaterialTheme.colorScheme.background,
-            ),
-        )
-
+    Scaffold(
+        modifier = modifier,
+        contentWindowInsets = WindowInsets.safeDrawing,
+        topBar = {
+            TopAppBar(
+                title = {
+                    Text(
+                        text = "TED Talks",
+                        style = MaterialTheme.typography.headlineSmall,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.primary,
+                    )
+                },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = MaterialTheme.colorScheme.background,
+                ),
+            )
+        },
+    ) { innerPadding ->
         when (uiState) {
-            is TedTalksUiState.Loading -> LoadingPane()
-            is TedTalksUiState.Error -> ErrorPane(message = uiState.message, onRetry = onRetry)
+            is TedTalksUiState.Loading -> LoadingPane(Modifier.padding(innerPadding))
+            is TedTalksUiState.Error -> ErrorPane(
+                message = uiState.message,
+                onRetry = onRetry,
+                modifier = Modifier.padding(innerPadding),
+            )
             is TedTalksUiState.Success -> TalkList(
                 talks = uiState.talks,
                 selectedTalkId = selectedTalkId,
                 onTalkClick = onTalkClick,
+                contentPadding = innerPadding,
             )
         }
     }
 }
 
 @Composable
-private fun LoadingPane() {
-    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+private fun LoadingPane(modifier: Modifier = Modifier) {
+    Box(modifier = modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
         CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
     }
 }
 
 @Composable
-private fun ErrorPane(message: String, onRetry: () -> Unit) {
-    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+private fun ErrorPane(message: String, onRetry: () -> Unit, modifier: Modifier = Modifier) {
+    Box(modifier = modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
         Column(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(16.dp),
@@ -128,6 +143,7 @@ private fun TalkList(
     talks: List<TalkItem>,
     selectedTalkId: String?,
     onTalkClick: (TalkItem) -> Unit,
+    contentPadding: PaddingValues,
 ) {
     val isTV = LocalConfiguration.current.uiMode and
             Configuration.UI_MODE_TYPE_MASK == Configuration.UI_MODE_TYPE_TELEVISION
@@ -141,13 +157,20 @@ private fun TalkList(
         }
     }
 
-    LazyColumn(modifier = Modifier.fillMaxSize()) {
-        itemsIndexed(talks, key = { _, talk -> talk.id }) { index, talk ->
+    // Adaptive cells: a single column on a phone-width list pane, multiple columns
+    // when the list pane is wider (e.g. tablet primary pane, desktop, TV).
+    LazyVerticalGrid(
+        columns = GridCells.Adaptive(360.dp),
+        contentPadding = contentPadding,
+        modifier = Modifier.fillMaxSize(),
+    ) {
+        items(talks, key = { it.id }) { talk ->
+            val isFirst = talk === talks.first()
             TalkListItem(
                 talk = talk,
                 isSelected = talk.id == selectedTalkId,
                 onClick = { onTalkClick(talk) },
-                modifier = if (index == 0) Modifier.focusRequester(firstItemFocusRequester) else Modifier,
+                modifier = if (isFirst) Modifier.focusRequester(firstItemFocusRequester) else Modifier,
             )
         }
     }
@@ -246,56 +269,71 @@ private fun TalkListItem(
     }
 }
 
-@Preview(showBackground = true, name = "Light Mode")
-@Preview(showBackground = true, uiMode = Configuration.UI_MODE_NIGHT_YES, name = "Dark Mode")
-@Preview(showBackground = true, widthDp = 800, heightDp = 600, name = "Tablet")
+private val sampleTalks = listOf(
+    TalkItem("1", "The future of media", "Hamish McKenzie", "Desc", "May 21, 2025", "10:58", "", "", null),
+    TalkItem("2", "The catastrophic risks of AI", "Yoshua Bengio", "Desc", "May 20, 2025", "14:49", "", "", null),
+    TalkItem("3", "How to make climate stories impossible to ignore", "Katherine Dunn", "Desc", "May 19, 2025", "09:46", "", "", null),
+    TalkItem("4", "What if the climate movement felt like a house party?", "Matthew Phillips", "Desc", "May 16, 2025", "08:34", "", "", null),
+    TalkItem("5", "The AI revolution is underhyped", "Eric Schmidt", "Desc", "May 15, 2025", "25:34", "", "", null),
+    TalkItem("6", "The delicious potential of rescuing wasted food", "Arash Derambarsh", "Desc", "May 14, 2025", "11:21", "", "", null),
+    TalkItem("7", "A new era of medicine", "Dr. Jane Smith", "Desc", "May 13, 2025", "18:05", "", "", null),
+)
+
+@Preview(name = "Phone", device = Devices.PHONE, showBackground = true)
+@Preview(name = "Phone Dark", device = Devices.PHONE, showBackground = true, uiMode = Configuration.UI_MODE_NIGHT_YES)
+@Preview(name = "Foldable", device = Devices.FOLDABLE, showBackground = true)
+@Preview(name = "Tablet", device = Devices.TABLET, showBackground = true)
+@Preview(name = "Desktop", device = Devices.DESKTOP, showBackground = true)
+annotation class FormFactorPreviews
+
+@FormFactorPreviews
 @Composable
 fun TalkListPanePreview() {
     MyApplicationTheme {
         TalkListPane(
-            uiState = TedTalksUiState.Success(
-                listOf(
-                    TalkItem("1", "The future of media", "Hamish McKenzie", "Desc", "May 21, 2025", "10:58", "", "", null),
-                    TalkItem("2", "The catastrophic risks of AI", "Yoshua Bengio", "Desc", "May 20, 2025", "14:49", "", "", null),
-                    TalkItem("3", "How to make climate stories impossible to ignore", "Katherine Dunn", "Desc", "May 19, 2025", "09:46", "", "", null),
-                    TalkItem("4", "What if the climate movement felt like a house party?", "Matthew Phillips", "Desc", "May 16, 2025", "08:34", "", "", null),
-                    TalkItem("5", "The AI revolution is underhyped", "Eric Schmidt", "Desc", "May 15, 2025", "25:34", "", "", null),
-                    TalkItem("6", "The delicious potential of rescuing wasted food", "Arash Derambarsh", "Desc", "May 14, 2025", "11:21", "", "", null),
-                    TalkItem("7", "A new era of medicine", "Dr. Jane Smith", "Desc", "May 13, 2025", "18:05", "", "", null)
-                )
-            ),
+            uiState = TedTalksUiState.Success(sampleTalks),
             selectedTalkId = "1",
             onTalkClick = {},
-            onRetry = {}
+            onRetry = {},
         )
     }
 }
 
 @Preview(showBackground = true, name = "Light Mode")
-@Preview(showBackground = true, uiMode = android.content.res.Configuration.UI_MODE_NIGHT_YES, name = "Dark Mode")
+@Preview(showBackground = true, uiMode = Configuration.UI_MODE_NIGHT_YES, name = "Dark Mode")
 @Composable
 fun TalkListItemPreview() {
     MyApplicationTheme {
         TalkListItem(
-            talk = TalkItem("1", "The future of media", "Hamish McKenzie", "Desc", "May 21, 2025", "10:58", "", "", null),
+            talk = sampleTalks[0],
             isSelected = false,
-            onClick = {}
+            onClick = {},
         )
     }
 }
 
-@Preview(showBackground = true, widthDp = 320, heightDp = 480)
+@Preview(showBackground = true, widthDp = 320, heightDp = 480, name = "Loading")
 @Composable
-fun LoadingPanePreview() {
+fun TalkListPaneLoadingPreview() {
     MyApplicationTheme {
-        LoadingPane()
+        TalkListPane(
+            uiState = TedTalksUiState.Loading,
+            selectedTalkId = null,
+            onTalkClick = {},
+            onRetry = {},
+        )
     }
 }
 
-@Preview(showBackground = true, widthDp = 320, heightDp = 480)
+@Preview(showBackground = true, widthDp = 320, heightDp = 480, name = "Error")
 @Composable
-fun ErrorPanePreview() {
+fun TalkListPaneErrorPreview() {
     MyApplicationTheme {
-        ErrorPane(message = "Network timeout. Please check your connection.", onRetry = {})
+        TalkListPane(
+            uiState = TedTalksUiState.Error("Network timeout. Please check your connection."),
+            selectedTalkId = null,
+            onTalkClick = {},
+            onRetry = {},
+        )
     }
 }

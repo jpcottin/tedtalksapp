@@ -1,5 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
 
-    <style name="Theme.MyApplication" parent="android:Theme.Material.Light.NoActionBar" />
+    <!--
+        Minimal dark NoActionBar parent. The app forces a dark Compose theme,
+        and `enableEdgeToEdge` is called from MainActivity, so the XML theme
+        only needs to declare "no action bar" + a dark background.
+    -->
+    <style name="Theme.MyApplication" parent="android:Theme.Material.NoActionBar" />
 </resources>

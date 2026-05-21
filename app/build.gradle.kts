@@ -2,11 +2,12 @@ plugins {
   alias(libs.plugins.android.application)
   alias(libs.plugins.compose.compiler)
   alias(libs.plugins.kotlin.serialization)
+  alias(libs.plugins.screenshot)
 }
 
 android {
     namespace = "com.jpcexample.tedtalks"
-    compileSdk = 36
+    compileSdk = 37
     defaultConfig {
         applicationId = "com.jpcexample.tedtalks"
         minSdk = 24
@@ -31,6 +32,9 @@ android {
       buildConfig = false
       shaders = false
     }
+
+    @Suppress("UnstableApiUsage")
+    experimentalProperties["android.experimental.enableScreenshotTest"] = true
 
     packaging {
       resources {
@@ -66,10 +70,10 @@ dependencies {
   implementation(libs.androidx.compose.ui.tooling.preview)
   implementation(libs.androidx.compose.material3)
 
-  // Adaptive layout
+  // Adaptive layout (Navigation 3 SceneStrategy)
   implementation(libs.androidx.compose.material3.adaptive)
   implementation(libs.androidx.compose.material3.adaptive.layout)
-  implementation(libs.androidx.compose.material3.adaptive.navigation)
+  implementation(libs.androidx.compose.material3.adaptive.navigation3)
 
   // Media3 ExoPlayer
   implementation(libs.androidx.media3.exoplayer)
@@ -107,4 +111,8 @@ dependencies {
   implementation(libs.androidx.navigation3.ui)
   implementation(libs.androidx.navigation3.runtime)
   implementation(libs.androidx.lifecycle.viewmodel.navigation3)
+
+  // Compose Preview Screenshot Tests
+  screenshotTestImplementation(libs.androidx.compose.ui.tooling)
+  screenshotTestImplementation(libs.screenshot.validation.api)
 }

@@ -1,6 +1,7 @@
 package com.jpcexample.tedtalks.ui.main
 
 import android.content.Intent
+import android.content.res.Configuration
 import android.net.Uri
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -8,13 +9,18 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.WindowInsetsSides
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
@@ -47,8 +53,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.unit.dp
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.dp
 import androidx.media3.exoplayer.ExoPlayer
 import coil3.compose.AsyncImage
 import com.jpcexample.tedtalks.data.TalkItem
@@ -74,7 +80,8 @@ fun TalkDetailPane(
             .background(MaterialTheme.colorScheme.background)
             .verticalScroll(scrollState),
     ) {
-        // Hero / video area
+        // Hero / video area — drawn edge-to-edge under the status bar.
+        // The overlaid M3 TopAppBar applies its own status-bar inset.
         Box(modifier = Modifier.fillMaxWidth()) {
             if (isPlayerVisible && talk.videoUrl != null && getExoPlayer != null) {
                 VideoPlayerView(
@@ -84,7 +91,6 @@ fun TalkDetailPane(
                         .aspectRatio(16f / 9f),
                 )
             } else {
-                // Thumbnail with gradient overlay, title, and play button
                 Box(modifier = Modifier.fillMaxWidth().aspectRatio(16f / 9f)) {
                     AsyncImage(
                         model = talk.imageUrl,
@@ -92,7 +98,6 @@ fun TalkDetailPane(
                         contentScale = ContentScale.Crop,
                         modifier = Modifier.fillMaxSize(),
                     )
-                    // Gradient for title legibility
                     Box(
                         modifier = Modifier
                             .fillMaxSize()
@@ -103,7 +108,6 @@ fun TalkDetailPane(
                                 )
                             ),
                     )
-                    // Play button centered
                     if (hasVideo) {
                         Box(
                             modifier = Modifier.fillMaxSize(),
@@ -124,7 +128,6 @@ fun TalkDetailPane(
                             }
                         }
                     }
-                    // Title on gradient
                     Column(
                         modifier = Modifier
                             .align(Alignment.BottomStart)
@@ -140,7 +143,6 @@ fun TalkDetailPane(
                 }
             }
 
-            // Back button always on top-left
             if (showBackButton) {
                 TopAppBar(
                     title = {},
@@ -159,9 +161,17 @@ fun TalkDetailPane(
             }
         }
 
-        // Details section
-        Column(modifier = Modifier.padding(16.dp)) {
-            // Show title here when video player is active (no gradient title visible)
+        // Detail content — horizontal/bottom safe-drawing insets keep content
+        // clear of nav bar, gesture bar, and any horizontal display cutouts.
+        Column(
+            modifier = Modifier
+                .windowInsetsPadding(
+                    WindowInsets.safeDrawing.only(
+                        WindowInsetsSides.Horizontal + WindowInsetsSides.Bottom
+                    )
+                )
+                .padding(16.dp),
+        ) {
             if (isPlayerVisible) {
                 Text(
                     text = talk.title,
@@ -240,7 +250,6 @@ fun TalkDetailPane(
 
             Spacer(modifier = Modifier.height(24.dp))
 
-            // Play in-app (if video available and not yet playing)
             if (hasVideo && !isPlayerVisible) {
                 Button(
                     onClick = { isPlayerVisible = true },
@@ -254,7 +263,6 @@ fun TalkDetailPane(
                 Spacer(modifier = Modifier.height(8.dp))
             }
 
-            // Always offer browser fallback
             OutlinedButton(
                 onClick = {
                     val intent = Intent(Intent.ACTION_VIEW, Uri.parse(talk.link))
@@ -277,7 +285,8 @@ fun EmptyDetailPlaceholder(modifier: Modifier = Modifier) {
     Box(
         modifier = modifier
             .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background),
+            .background(MaterialTheme.colorScheme.background)
+            .windowInsetsPadding(WindowInsets.safeDrawing),
         contentAlignment = Alignment.Center,
     ) {
         Column(
@@ -306,7 +315,7 @@ fun EmptyDetailPlaceholder(modifier: Modifier = Modifier) {
 }
 
 @Preview(showBackground = true, widthDp = 600, name = "Light Mode")
-@Preview(showBackground = true, widthDp = 600, uiMode = android.content.res.Configuration.UI_MODE_NIGHT_YES, name = "Dark Mode")
+@Preview(showBackground = true, widthDp = 600, uiMode = Configuration.UI_MODE_NIGHT_YES, name = "Dark Mode")
 @Preview(showBackground = true, widthDp = 800, heightDp = 600, name = "Tablet")
 @Composable
 fun TalkDetailPanePreview() {
@@ -314,7 +323,7 @@ fun TalkDetailPanePreview() {
         TalkDetailPane(
             talk = TalkItem("1", "The future of media", "Hamish McKenzie", "Hamish McKenzie discusses the future of media.", "May 21, 2025", "10:58", "", "https://ted.com", "https://example.com/video.mp4"),
             showBackButton = true,
-            onBack = {}
+            onBack = {},
         )
     }
 }
@@ -326,7 +335,7 @@ fun TalkDetailPaneNoVideoPreview() {
         TalkDetailPane(
             talk = TalkItem("2", "The catastrophic risks of AI", "Yoshua Bengio", "A very long and detailed description about the catastrophic risks of Artificial Intelligence and what we must do to stop them. ".repeat(10), "May 20, 2025", "14:49", "", "https://ted.com", null),
             showBackButton = false,
-            onBack = {}
+            onBack = {},
         )
     }
 }
@@ -338,13 +347,13 @@ fun TalkDetailPaneMissingMetaPreview() {
         TalkDetailPane(
             talk = TalkItem("3", "Mysterious Talk", "Unknown Speaker", "Description is available but other meta is missing.", "", "", "", "https://ted.com", null),
             showBackButton = true,
-            onBack = {}
+            onBack = {},
         )
     }
 }
 
 @Preview(showBackground = true, name = "Light Mode")
-@Preview(showBackground = true, uiMode = android.content.res.Configuration.UI_MODE_NIGHT_YES, name = "Dark Mode")
+@Preview(showBackground = true, uiMode = Configuration.UI_MODE_NIGHT_YES, name = "Dark Mode")
 @Composable
 fun EmptyDetailPlaceholderPreview() {
     MyApplicationTheme {

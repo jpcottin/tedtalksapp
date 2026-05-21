@@ -6,23 +6,27 @@ import okhttp3.OkHttpClient
 import okhttp3.Request
 import java.util.concurrent.TimeUnit
 
-class TedTalksRepository {
+interface TedTalksRepository {
+    suspend fun fetchTalks(): Result<List<TalkItem>>
+}
 
-    private val client = OkHttpClient.Builder()
+class DefaultTedTalksRepository(
+    private val feedUrl: String = "https://feeds.feedburner.com/TedtalksHD",
+    private val parser: RssFeedParser = RssFeedParser(),
+    private val client: OkHttpClient = OkHttpClient.Builder()
         .connectTimeout(15, TimeUnit.SECONDS)
         .readTimeout(15, TimeUnit.SECONDS)
         .followRedirects(true)
-        .build()
+        .build(),
+) : TedTalksRepository {
 
-    private val feedUrl = "https://feeds.feedburner.com/TedtalksHD"
-
-    suspend fun fetchTalks(): Result<List<TalkItem>> = withContext(Dispatchers.IO) {
+    override suspend fun fetchTalks(): Result<List<TalkItem>> = withContext(Dispatchers.IO) {
         runCatching {
             val request = Request.Builder().url(feedUrl).build()
             val response = client.newCall(request).execute()
             if (!response.isSuccessful) error("HTTP ${response.code}")
             val body = response.body ?: error("Empty response body")
-            val talks = RssFeedParser().parse(body.byteStream())
+            val talks = parser.parse(body.byteStream())
             response.close()
             talks
         }

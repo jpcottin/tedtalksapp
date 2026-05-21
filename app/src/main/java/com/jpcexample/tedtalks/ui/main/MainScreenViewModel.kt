@@ -2,9 +2,11 @@ package com.jpcexample.tedtalks.ui.main
 
 import android.content.Context
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import androidx.media3.common.MediaItem
 import androidx.media3.exoplayer.ExoPlayer
+import com.jpcexample.tedtalks.data.DefaultTedTalksRepository
 import com.jpcexample.tedtalks.data.TalkItem
 import com.jpcexample.tedtalks.data.TedTalksRepository
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -12,9 +14,9 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 
-class TedTalksViewModel : ViewModel() {
-
-    private val repository = TedTalksRepository()
+class TedTalksViewModel(
+    private val repository: TedTalksRepository = DefaultTedTalksRepository(),
+) : ViewModel() {
 
     private val _uiState = MutableStateFlow<TedTalksUiState>(TedTalksUiState.Loading)
     val uiState: StateFlow<TedTalksUiState> = _uiState.asStateFlow()
@@ -64,6 +66,15 @@ class TedTalksViewModel : ViewModel() {
         super.onCleared()
         exoPlayer?.release()
         exoPlayer = null
+    }
+
+    companion object {
+        fun factory(repository: TedTalksRepository): ViewModelProvider.Factory =
+            object : ViewModelProvider.Factory {
+                @Suppress("UNCHECKED_CAST")
+                override fun <T : ViewModel> create(modelClass: Class<T>): T =
+                    TedTalksViewModel(repository) as T
+            }
     }
 }
 
