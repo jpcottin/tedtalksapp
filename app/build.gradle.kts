@@ -100,6 +100,7 @@ dependencies {
   testImplementation(libs.kotlinx.coroutines.test)
   testImplementation(libs.kxml2)
   testImplementation(libs.mockk)
+  testImplementation(libs.okhttp.mockwebserver)
 
   // Instrumented tests: jUnit rules and runners
   androidTestImplementation(libs.androidx.test.core)

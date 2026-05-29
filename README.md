@@ -62,14 +62,19 @@ The repository is wired for constructor injection, so tests can pass a fake with
 
 - **`TedTalksRepository`** is an interface; `DefaultTedTalksRepository` is the production implementation.
 - **`FakeTedTalksRepository`** lives in `app/src/test/.../data/` and lets tests pin any `Result<List<TalkItem>>`.
+- **`DefaultTedTalksRepository`** is tested against an in-process [`MockWebServer`](https://square.github.io/okhttp/features/mockwebserver/) so HTTP error codes, malformed XML, empty bodies, and the request URL/method are all covered without hitting the network.
 
 | Type | Source set | Command | What it covers |
 |------|-----------|---------|----------------|
-| Unit tests | `src/test/` | `./gradlew :app:testDebugUnitTest` | `RssFeedParser` parsing edge cases + `TedTalksViewModel` state machine (loading / success / error / retry / selection). |
+| Unit tests | `src/test/` | `./gradlew :app:testDebugUnitTest` | `RssFeedParser` parsing edge cases, `DefaultTedTalksRepository` HTTP behavior via MockWebServer, and `TedTalksViewModel` state machine (loading / success / error / retry / selection). |
 | Compose UI tests | `src/androidTest/` | `./gradlew :app:connectedDebugAndroidTest` | `TalkListPane`, `TalkDetailPane`, and the full `MainNavigation` graph using `FakeTedTalksRepository`. |
 | Screenshot tests | `src/screenshotTest/` | `./gradlew :app:updateDebugScreenshotTest` (record) / `./gradlew :app:validateDebugScreenshotTest` (verify) | Curated `@PreviewTest` previews of `TalkListPane` (loading/error/success), `TalkDetailPane`, and `EmptyDetailPlaceholder` across phone/foldable/tablet form factors. Uses the experimental [Compose Preview Screenshot Testing tool](https://developer.android.com/studio/preview/compose-screenshot-testing). |
 
 Compose `@Preview`s in `src/main/` (e.g. `TalkListPanePreview`) remain for design-time use in Android Studio and are tagged with a `FormFactorPreviews` multi-preview annotation.
+
+### CI
+
+Pushes to `main` and PRs targeting it run [`.github/workflows/android.yml`](.github/workflows/android.yml): lint → unit tests → screenshot validation → debug build. A failed screenshot run uploads the HTML diff report as a workflow artifact (`screenshot-test-report`) for triage. Connected (instrumented) Compose UI tests still need a local device or emulator.
 
 ## 📱 Screenshots
 
@@ -91,10 +96,11 @@ Compose `@Preview`s in `src/main/` (e.g. `TalkListPanePreview`) remain for desig
 
 ### Run the test suites
 ```bash
-./gradlew :app:testDebugUnitTest                # unit tests
+./gradlew :app:testDebugUnitTest                # unit tests (parser, repository, viewmodel)
 ./gradlew :app:connectedDebugAndroidTest        # Compose UI tests (requires a device/emulator)
 ./gradlew :app:updateDebugScreenshotTest        # (re)record reference screenshots
 ./gradlew :app:validateDebugScreenshotTest      # verify screenshots haven't regressed
+./gradlew :app:lintDebug                        # what CI gates on
 ```
 
 ## 📄 License
