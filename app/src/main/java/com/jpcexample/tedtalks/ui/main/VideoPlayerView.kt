@@ -1,6 +1,8 @@
 package com.jpcexample.tedtalks.ui.main
 
+import android.app.PictureInPictureParams
 import android.content.Context
+import android.os.Build
 import android.view.LayoutInflater
 import android.view.ViewGroup
 import android.view.ViewGroup.LayoutParams.MATCH_PARENT
@@ -12,6 +14,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -21,19 +24,24 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.toAndroidRectF
 import androidx.compose.ui.input.key.onKeyEvent
+import androidx.compose.ui.layout.boundsInWindow
+import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import androidx.compose.ui.window.DialogWindowProvider
+import androidx.core.graphics.toRect
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.media3.common.MediaItem
+import androidx.media3.common.Player
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.ui.PlayerView
 import android.view.KeyEvent as AndroidKeyEvent
@@ -71,10 +79,34 @@ fun VideoPlayerView(
 
     val focusRequester = remember { FocusRequester() }
 
+    val supportsPip = remember(context) { context.supportsPip() }
+    val isInPip = rememberIsInPipMode()
+    var shouldEnterPip by remember { mutableStateOf(exoPlayer?.isPlaying == true) }
+
+    DisposableEffect(exoPlayer) {
+        val listener = object : Player.Listener {
+            override fun onIsPlayingChanged(isPlaying: Boolean) {
+                shouldEnterPip = isPlaying
+            }
+        }
+        exoPlayer?.addListener(listener)
+        onDispose { exoPlayer?.removeListener(listener) }
+    }
+
+    if (supportsPip) {
+        PipOnLeaveEffect(exoPlayer = exoPlayer, shouldEnterPip = shouldEnterPip)
+        // The PiP window hosts the inline player, not the fullscreen dialog.
+        LaunchedEffect(isInPip) {
+            if (isInPip) isFullscreen = false
+        }
+    }
+
     DisposableEffect(lifecycleOwner) {
         val observer = LifecycleEventObserver { _, event ->
             Log.d("VideoPlayerView", "Lifecycle event: $event")
-            if (event == Lifecycle.Event.ON_PAUSE) {
+            if (event == Lifecycle.Event.ON_PAUSE &&
+                context.findActivity()?.isInPictureInPictureMode != true
+            ) {
                 Log.d("VideoPlayerView", "Pausing ExoPlayer")
                 exoPlayer?.pause()
             }
@@ -100,6 +132,24 @@ fun VideoPlayerView(
             onDismiss = { isFullscreen = false }
         )
     } else {
+        // Feed the player's on-screen bounds to the system so the enter/exit
+        // PiP animation morphs from the actual video rect.
+        val pipSourceRectModifier = if (supportsPip) {
+            Modifier.onGloballyPositioned { coordinates ->
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                    context.findActivity()?.setPictureInPictureParams(
+                        PictureInPictureParams.Builder()
+                            .setSourceRectHint(
+                                coordinates.boundsInWindow().toAndroidRectF().toRect()
+                            )
+                            .build()
+                    )
+                }
+            }
+        } else {
+            Modifier
+        }
+
         AndroidView(
             factory = viewFactory,
             update = { pv ->
@@ -107,10 +157,12 @@ fun VideoPlayerView(
                 if (pv.player != exoPlayer) {
                     pv.player = exoPlayer
                 }
+                pv.useController = !isInPip
                 pv.setFullscreenButtonState(false)
                 pv.setFullscreenButtonClickListener { isFullscreen = true }
             },
             modifier = modifier
+                .then(pipSourceRectModifier)
                 .focusRequester(focusRequester)
                 .focusable(),
         )

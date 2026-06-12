@@ -74,6 +74,18 @@ fun TalkDetailPane(
     var isPlayerVisible by rememberSaveable(talk.id) { mutableStateOf(false) }
     val hasVideo = talk.videoUrl != null
 
+    // In picture-in-picture the window is tiny: show only the video, full-bleed.
+    val isInPip = rememberIsInPipMode()
+    if (isInPip && isPlayerVisible && talk.videoUrl != null && getExoPlayer != null) {
+        VideoPlayerView(
+            exoPlayer = getExoPlayer(talk.videoUrl),
+            modifier = Modifier
+                .fillMaxSize()
+                .background(Color.Black),
+        )
+        return
+    }
+
     Column(
         modifier = modifier
             .fillMaxSize()

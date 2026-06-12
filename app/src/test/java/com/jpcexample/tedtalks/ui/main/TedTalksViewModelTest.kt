@@ -1,7 +1,16 @@
 package com.jpcexample.tedtalks.ui.main
 
+import android.content.Context
+import android.net.Uri
+import androidx.media3.common.Player
+import androidx.media3.exoplayer.ExoPlayer
 import com.jpcexample.tedtalks.data.FakeTedTalksRepository
 import com.jpcexample.tedtalks.data.TalkItem
+import io.mockk.every
+import io.mockk.mockk
+import io.mockk.mockkStatic
+import io.mockk.unmockkStatic
+import io.mockk.verify
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
@@ -83,5 +92,66 @@ class TedTalksViewModelTest {
         viewModel.clearSelection()
 
         assertNull(viewModel.selectedTalkId.value)
+    }
+
+    // --- getExoPlayer: playback position bookkeeping (player is mocked, no media stack) ---
+
+    private fun playerViewModel(player: ExoPlayer): TedTalksViewModel =
+        TedTalksViewModel(FakeTedTalksRepository(Result.success(sampleTalks))) { player }
+
+    @Before
+    fun stubUriParse() {
+        // MediaItem.fromUri calls android.net.Uri, which is a stub on the local JVM.
+        mockkStatic(Uri::class)
+        every { Uri.parse(any()) } returns mockk(relaxed = true)
+    }
+
+    @After
+    fun unstubUriParse() {
+        unmockkStatic(Uri::class)
+    }
+
+    @Test
+    fun getExoPlayer_sameUrl_reusesPlayerWithoutRestartingMedia() = runTest {
+        val player = mockk<ExoPlayer>(relaxed = true)
+        val viewModel = playerViewModel(player)
+        val context = mockk<Context>(relaxed = true)
+
+        val first = viewModel.getExoPlayer(context, "https://cdn/a.mp4")
+        val second = viewModel.getExoPlayer(context, "https://cdn/a.mp4")
+
+        assertEquals(first, second)
+        verify(exactly = 1) { player.setMediaItem(any()) }
+        verify(exactly = 1) { player.prepare() }
+    }
+
+    @Test
+    fun getExoPlayer_switchingBackToTalk_resumesSavedPosition() = runTest {
+        val player = mockk<ExoPlayer>(relaxed = true)
+        every { player.playbackState } returns Player.STATE_READY
+        every { player.currentPosition } returns 42_000L
+        val viewModel = playerViewModel(player)
+        val context = mockk<Context>(relaxed = true)
+
+        viewModel.getExoPlayer(context, "https://cdn/a.mp4")
+        viewModel.getExoPlayer(context, "https://cdn/b.mp4") // saves a.mp4 at 42s
+        viewModel.getExoPlayer(context, "https://cdn/a.mp4") // must resume there
+
+        verify { player.seekTo(42_000L) }
+    }
+
+    @Test
+    fun getExoPlayer_finishedTalk_restartsFromBeginning() = runTest {
+        val player = mockk<ExoPlayer>(relaxed = true)
+        every { player.playbackState } returns Player.STATE_ENDED
+        every { player.currentPosition } returns 600_000L
+        val viewModel = playerViewModel(player)
+        val context = mockk<Context>(relaxed = true)
+
+        viewModel.getExoPlayer(context, "https://cdn/a.mp4")
+        viewModel.getExoPlayer(context, "https://cdn/b.mp4") // a.mp4 ended: position dropped
+        viewModel.getExoPlayer(context, "https://cdn/a.mp4")
+
+        verify(exactly = 0) { player.seekTo(any<Long>()) }
     }
 }
