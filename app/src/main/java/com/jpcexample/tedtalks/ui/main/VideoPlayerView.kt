@@ -78,6 +78,17 @@ fun VideoPlayerView(
     var isFullscreen by remember { mutableStateOf(false) }
 
     val focusRequester = remember { FocusRequester() }
+    val isTV = isTelevision()
+    var playerViewRef by remember { mutableStateOf<PlayerView?>(null) }
+
+    // On TV the player must own focus so the D-pad drives the playback controls
+    // (show controller, pause/seek). Key events are forwarded to the PlayerView
+    // below; BACK falls through when the controller is hidden, popping navigation.
+    LaunchedEffect(isTV, exoPlayer, isFullscreen) {
+        if (isTV && exoPlayer != null && !isFullscreen) {
+            try { focusRequester.requestFocus() } catch (_: Exception) {}
+        }
+    }
 
     val supportsPip = remember(context) { context.supportsPip() }
     val isInPip = rememberIsInPipMode()
@@ -154,6 +165,7 @@ fun VideoPlayerView(
             factory = viewFactory,
             update = { pv ->
                 Log.d("VideoPlayerView", "AndroidView update called. attaching player")
+                playerViewRef = pv
                 if (pv.player != exoPlayer) {
                     pv.player = exoPlayer
                 }
@@ -164,6 +176,12 @@ fun VideoPlayerView(
             modifier = modifier
                 .then(pipSourceRectModifier)
                 .focusRequester(focusRequester)
+                // D-pad/media keys go to the PlayerView (Media3 TV recipe). It
+                // consumes them while the controller is visible and lets BACK
+                // through once hidden, so navigation still works.
+                .onKeyEvent { event ->
+                    playerViewRef?.dispatchKeyEvent(event.nativeKeyEvent) ?: false
+                }
                 .focusable(),
         )
     }
@@ -198,6 +216,16 @@ private fun FullscreenPlayerDialog(
             }
         }
 
+        val fullscreenFocusRequester = remember { FocusRequester() }
+        var fullscreenPlayerView by remember { mutableStateOf<PlayerView?>(null) }
+        val isTV = isTelevision()
+
+        LaunchedEffect(isTV) {
+            if (isTV) {
+                try { fullscreenFocusRequester.requestFocus() } catch (_: Exception) {}
+            }
+        }
+
         Box(
             modifier = Modifier
                 .fillMaxSize()
@@ -211,6 +239,7 @@ private fun FullscreenPlayerDialog(
                     }
                 },
                 update = { pv ->
+                    fullscreenPlayerView = pv
                     if (pv.player != exoPlayer) {
                         pv.player = exoPlayer
                     }
@@ -219,6 +248,10 @@ private fun FullscreenPlayerDialog(
                 },
                 modifier = Modifier
                     .fillMaxSize()
+                    .focusRequester(fullscreenFocusRequester)
+                    .onKeyEvent { event ->
+                        fullscreenPlayerView?.dispatchKeyEvent(event.nativeKeyEvent) ?: false
+                    }
                     .focusable(),
             )
         }

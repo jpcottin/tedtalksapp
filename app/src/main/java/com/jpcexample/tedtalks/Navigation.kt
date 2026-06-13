@@ -1,6 +1,6 @@
 package com.jpcexample.tedtalks
 
-import android.content.res.Configuration
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.adaptive.ExperimentalMaterial3AdaptiveApi
@@ -12,7 +12,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -22,6 +21,7 @@ import androidx.navigation3.runtime.rememberNavBackStack
 import androidx.navigation3.ui.NavDisplay
 import com.jpcexample.tedtalks.ui.main.EmptyDetailPlaceholder
 import com.jpcexample.tedtalks.ui.main.TalkDetailPane
+import com.jpcexample.tedtalks.ui.main.isTelevision
 import com.jpcexample.tedtalks.ui.main.TalkListPane
 import com.jpcexample.tedtalks.ui.main.TedTalksUiState
 import com.jpcexample.tedtalks.ui.main.TedTalksViewModel
@@ -31,8 +31,7 @@ import com.jpcexample.tedtalks.ui.main.TedTalksViewModel
 fun MainNavigation(viewModel: TedTalksViewModel) {
     val backStack = rememberNavBackStack(TalksList)
     val context = LocalContext.current
-    val isTV = LocalConfiguration.current.uiMode and
-            Configuration.UI_MODE_TYPE_MASK == Configuration.UI_MODE_TYPE_TELEVISION
+    val isTV = isTelevision()
 
     val windowAdaptiveInfo = currentWindowAdaptiveInfoV2()
     val directive = remember(windowAdaptiveInfo) {
@@ -44,6 +43,16 @@ fun MainNavigation(viewModel: TedTalksViewModel) {
 
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val selectedTalkId by viewModel.selectedTalkId.collectAsStateWithLifecycle()
+
+    // In a two-pane scene ListDetailSceneStrategy reports no previous entries, which
+    // disables NavDisplay's built-in back handling — BACK would close the activity
+    // instead of dismissing the detail pane. This outer fallback pops the stack; in
+    // single-pane scenes NavDisplay's own (more recently registered) handler wins,
+    // keeping the predictive-back animation.
+    BackHandler(enabled = backStack.size > 1) {
+        backStack.removeLastOrNull()
+        viewModel.clearSelection()
+    }
 
     NavDisplay(
         backStack = backStack,

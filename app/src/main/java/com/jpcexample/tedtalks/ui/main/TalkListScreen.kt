@@ -2,7 +2,6 @@ package com.jpcexample.tedtalks.ui.main
 
 import android.content.res.Configuration
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -37,19 +36,15 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
-import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.focus.focusRestorer
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Devices
@@ -145,8 +140,7 @@ private fun TalkList(
     onTalkClick: (TalkItem) -> Unit,
     contentPadding: PaddingValues,
 ) {
-    val isTV = LocalConfiguration.current.uiMode and
-            Configuration.UI_MODE_TYPE_MASK == Configuration.UI_MODE_TYPE_TELEVISION
+    val isTV = isTelevision()
 
     val firstItemFocusRequester = remember { FocusRequester() }
 
@@ -162,7 +156,11 @@ private fun TalkList(
     LazyVerticalGrid(
         columns = GridCells.Adaptive(360.dp),
         contentPadding = contentPadding,
-        modifier = Modifier.fillMaxSize(),
+        modifier = Modifier
+            .fillMaxSize()
+            // When focus comes back from the detail pane / player, return it to
+            // the item that was focused before instead of the top of the list.
+            .focusRestorer(firstItemFocusRequester),
     ) {
         items(talks, key = { it.id }) { talk ->
             val isFirst = talk === talks.first()
@@ -183,17 +181,10 @@ private fun TalkListItem(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    var isFocused by remember { mutableStateOf(false) }
-
     Row(
         modifier = modifier
             .fillMaxWidth()
-            .onFocusChanged { isFocused = it.isFocused }
-            .border(
-                width = if (isFocused) 3.dp else 0.dp,
-                color = if (isFocused) MaterialTheme.colorScheme.primary else Color.Transparent,
-                shape = RoundedCornerShape(8.dp),
-            )
+            .dpadFocusHighlight(RoundedCornerShape(8.dp))
             .background(
                 if (isSelected) MaterialTheme.colorScheme.surfaceVariant
                 else Color.Transparent
