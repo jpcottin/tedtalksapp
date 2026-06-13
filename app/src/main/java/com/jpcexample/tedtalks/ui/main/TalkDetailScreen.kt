@@ -1,5 +1,6 @@
 package com.jpcexample.tedtalks.ui.main
 
+import android.content.ActivityNotFoundException
 import android.content.Intent
 import android.content.res.Configuration
 import android.net.Uri
@@ -73,6 +74,7 @@ fun TalkDetailPane(
     val scrollState = rememberScrollState()
     var isPlayerVisible by rememberSaveable(talk.id) { mutableStateOf(false) }
     val hasVideo = talk.videoUrl != null
+    val isTV = isTelevision()
 
     // In picture-in-picture the window is tiny: show only the video, full-bleed.
     val isInPip = rememberIsInPipMode()
@@ -129,6 +131,7 @@ fun TalkDetailPane(
                                 onClick = { isPlayerVisible = true },
                                 modifier = Modifier
                                     .size(72.dp)
+                                    .dpadFocusHighlight(CircleShape)
                                     .background(Color.Black.copy(alpha = 0.55f), CircleShape),
                             ) {
                                 Icon(
@@ -266,7 +269,9 @@ fun TalkDetailPane(
                 Button(
                     onClick = { isPlayerVisible = true },
                     colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .dpadFocusHighlight(ButtonDefaults.shape),
                 ) {
                     Icon(Icons.Default.PlayArrow, contentDescription = null)
                     Spacer(modifier = Modifier.width(8.dp))
@@ -275,16 +280,24 @@ fun TalkDetailPane(
                 Spacer(modifier = Modifier.height(8.dp))
             }
 
-            OutlinedButton(
-                onClick = {
-                    val intent = Intent(Intent.ACTION_VIEW, Uri.parse(talk.link))
-                    context.startActivity(intent)
-                },
-                modifier = Modifier.fillMaxWidth(),
-            ) {
-                Icon(Icons.AutoMirrored.Filled.OpenInNew, contentDescription = null)
-                Spacer(modifier = Modifier.width(8.dp))
-                Text("Open on TED.com")
+            // TV devices have no browser; a web link is a dead end there.
+            if (!isTV) {
+                OutlinedButton(
+                    onClick = {
+                        try {
+                            context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(talk.link)))
+                        } catch (_: ActivityNotFoundException) {
+                            // No browser installed; nothing sensible to do.
+                        }
+                    },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .dpadFocusHighlight(ButtonDefaults.outlinedShape),
+                ) {
+                    Icon(Icons.AutoMirrored.Filled.OpenInNew, contentDescription = null)
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("Open on TED.com")
+                }
             }
 
             Spacer(modifier = Modifier.height(32.dp))

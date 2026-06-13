@@ -8,7 +8,9 @@ import androidx.compose.ui.test.performClick
 import com.jpcexample.tedtalks.data.TalkItem
 import com.jpcexample.tedtalks.data.TedTalksRepository
 import com.jpcexample.tedtalks.theme.MyApplicationTheme
+import androidx.test.espresso.Espresso
 import com.jpcexample.tedtalks.ui.main.TedTalksViewModel
+import org.junit.Assert.assertNull
 import org.junit.Rule
 import org.junit.Test
 
@@ -56,5 +58,28 @@ class MainNavigationTest {
         composeTestRule.waitForIdle()
 
         composeTestRule.onNodeWithText("Bob's description.").assertIsDisplayed()
+    }
+
+    @Test
+    fun navGraph_backFromDetailReturnsToList() {
+        val viewModel = TedTalksViewModel(StaticRepo(talks))
+        composeTestRule.setContent {
+            MyApplicationTheme {
+                MainNavigation(viewModel = viewModel)
+            }
+        }
+        composeTestRule.waitForIdle()
+        composeTestRule.onNodeWithText("Second talk").performClick()
+        composeTestRule.waitForIdle()
+        composeTestRule.onNodeWithText("Bob's description.").assertIsDisplayed()
+
+        Espresso.pressBack()
+        composeTestRule.waitForIdle()
+
+        // Back must dismiss the detail entry and land on the list, not finish
+        // the activity (regression guard for the two-pane back fallback).
+        composeTestRule.onNodeWithText("TED Talks").assertIsDisplayed()
+        composeTestRule.onNodeWithText("First talk").assertIsDisplayed()
+        assertNull(viewModel.selectedTalkId.value)
     }
 }

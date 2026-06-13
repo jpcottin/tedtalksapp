@@ -6,6 +6,7 @@ import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performScrollTo
 import com.jpcexample.tedtalks.data.TalkItem
 import org.junit.Rule
 import org.junit.Test
@@ -32,9 +33,13 @@ class TalkDetailPaneTest {
             TalkDetailPane(talk = talk, showBackButton = false, onBack = {})
         }
 
+        // The detail body scrolls; on short/wide viewports (e.g. a TV rendering
+        // this pane full-width) the speaker and description sit below the 16:9
+        // hero, so scroll them into view before asserting.
         composeTestRule.onNodeWithText("A bold talk").assertIsDisplayed()
-        composeTestRule.onNodeWithText("Alice").assertIsDisplayed()
-        composeTestRule.onNodeWithText("An interesting description.").assertIsDisplayed()
+        composeTestRule.onNodeWithText("Alice").performScrollTo().assertIsDisplayed()
+        composeTestRule.onNodeWithText("An interesting description.")
+            .performScrollTo().assertIsDisplayed()
     }
 
     @Test
