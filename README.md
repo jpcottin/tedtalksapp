@@ -90,7 +90,20 @@ Compose `@Preview`s in `src/main/` (e.g. `TalkListPanePreview`) remain for desig
 
 The `release` build type enables R8 (`isMinifyEnabled = true`) and resource shrinking (`isShrinkResources = true`), taking the APK from ~23.7 MB (debug) to **~2.4 MB**. `proguard-rules.pro` is intentionally empty: every dependency ships its own consumer keep rules, including `kotlinx-serialization`, whose bundled rules keep the generated serializers for the `@Serializable` `NavKey`s (`TalksList`/`TalkDetail`) used in back-stack persistence. This was verified with a minified build that parses the live feed, navigates, and restores the back stack across process death; see [`R8_Configuration_Analysis.md`](R8_Configuration_Analysis.md). `kxml2` is `testImplementation`-only, so XML parsing needs no runtime keep rule.
 
-The release type is currently signed with the debug key so the minified build is installable for local verification (`./gradlew :app:installRelease`) — swap in a real signing config before publishing.
+### Signing
+
+The `release` build type is signed with a real release key, configured **outside source control**:
+
+- **Local:** copy [`keystore.properties.template`](keystore.properties.template) to `keystore.properties` (gitignored) and fill in `storeFile` / `storePassword` / `keyAlias` / `keyPassword`. `storeFile` is resolved relative to the repo root.
+- **CI:** provide the same values as environment variables — `RELEASE_STORE_FILE`, `RELEASE_STORE_PASSWORD`, `RELEASE_KEY_ALIAS`, `RELEASE_KEY_PASSWORD` (each property falls back to its env var).
+- **No key configured:** the release build falls back to **debug signing** (with a build warning), so CI and contributor builds work without the signing secrets.
+
+`keystore.properties`, `*.jks`, and `*.keystore` are gitignored — **never commit the keystore or its credentials.** Generate an upload key with:
+
+```bash
+keytool -genkeypair -v -keystore keystore/release.jks -alias tedtalks \
+  -keyalg RSA -keysize 2048 -validity 10000
+```
 
 ### Baseline profiles
 

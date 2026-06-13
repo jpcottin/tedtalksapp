@@ -7,9 +7,9 @@
   - `isMinifyEnabled = true` — R8 shrinking + obfuscation enabled.
   - `isShrinkResources = true` — unused resources stripped.
   - `proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")`.
-  - `signingConfig = signingConfigs.getByName("debug")` — debug-signed so the
-    minified build is installable for local verification. **Replace with a real
-    release key before publishing.**
+  - Signed with a real release key sourced from `keystore.properties` (gitignored)
+    or `RELEASE_*` environment variables (CI), falling back to debug signing when
+    no key is configured. See the Signing section in the README.
 
 ## Result
 
