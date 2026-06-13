@@ -3,6 +3,7 @@ plugins {
   alias(libs.plugins.compose.compiler)
   alias(libs.plugins.kotlin.serialization)
   alias(libs.plugins.screenshot)
+  alias(libs.plugins.baselineprofile)
 }
 
 android {
@@ -92,6 +93,10 @@ dependencies {
 
   // HTTP
   implementation(libs.okhttp)
+
+  // Baseline profile installer (bundles + installs the generated profile at runtime)
+  implementation(libs.androidx.profileinstaller)
+  baselineProfile(project(":baselineprofile"))
 
   // Tooling
   debugImplementation(libs.androidx.compose.ui.tooling)

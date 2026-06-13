@@ -92,6 +92,16 @@ The `release` build type enables R8 (`isMinifyEnabled = true`) and resource shri
 
 The release type is currently signed with the debug key so the minified build is installable for local verification (`./gradlew :app:installRelease`) — swap in a real signing config before publishing.
 
+### Baseline profiles
+
+The `:baselineprofile` module (`com.android.test` + `androidx.baselineprofile`) generates a [Baseline Profile](https://developer.android.com/topic/performance/baselineprofiles/overview) so ART can AOT-compile the startup and core-navigation hot paths instead of JIT-ing them on first run.
+
+- **Generator** — `BaselineProfileGenerator` drives a cold start plus a browse → open-detail → back journey via UI Automator. The app depends on `androidx.profileinstaller`, which bundles the compiled profile (`assets/dexopt/baseline.prof`) into the release APK and installs it on first launch.
+- **Regenerate** — `./gradlew :app:generateReleaseBaselineProfile` (needs a connected device/emulator). Output is committed at `app/src/release/generated/baselineProfiles/{baseline,startup}-prof.txt` so releases ship the profile without regenerating.
+- **Measure** — `StartupBenchmark` compares cold-start time with `CompilationMode.None()` vs the baseline profile. Run it on a **physical device** for representative numbers (emulator timings are not meaningful): `./gradlew :baselineprofile:connectedBenchmarkReleaseAndroidTest`.
+
+> Baseline/benchmark tooling is on `androidx.benchmark` / `androidx.baselineprofile` `1.5.0-alpha06`, the line that supports AGP 9.
+
 ### CI
 
 Pushes to `main` and PRs targeting it run [`.github/workflows/android.yml`](.github/workflows/android.yml): lint → unit tests → screenshot validation → debug build. A failed screenshot run uploads the HTML diff report as a workflow artifact (`screenshot-test-report`) for triage. Connected (instrumented) Compose UI tests still need a local device or emulator.
