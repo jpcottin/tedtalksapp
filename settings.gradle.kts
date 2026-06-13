@@ -19,3 +19,4 @@ plugins {
 
 rootProject.name = "TedTalks"
 include(":app")
+include(":baselineprofile")

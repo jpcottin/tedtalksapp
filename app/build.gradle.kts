@@ -3,6 +3,7 @@ plugins {
   alias(libs.plugins.compose.compiler)
   alias(libs.plugins.kotlin.serialization)
   alias(libs.plugins.screenshot)
+  alias(libs.plugins.baselineprofile)
 }
 
 android {
@@ -18,8 +19,12 @@ android {
 
     buildTypes {
         release {
-            isMinifyEnabled = false
+            isMinifyEnabled = true
+            isShrinkResources = true
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
+            // Sign release with the debug key so the minified build is installable
+            // for local verification. Replace with a real release key before publishing.
+            signingConfig = signingConfigs.getByName("debug")
         }
     }
     compileOptions {
@@ -88,6 +93,10 @@ dependencies {
 
   // HTTP
   implementation(libs.okhttp)
+
+  // Baseline profile installer (bundles + installs the generated profile at runtime)
+  implementation(libs.androidx.profileinstaller)
+  baselineProfile(project(":baselineprofile"))
 
   // Tooling
   debugImplementation(libs.androidx.compose.ui.tooling)
