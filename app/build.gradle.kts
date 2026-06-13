@@ -1,3 +1,5 @@
+import java.util.Properties
+
 plugins {
   alias(libs.plugins.android.application)
   alias(libs.plugins.compose.compiler)
@@ -5,6 +7,19 @@ plugins {
   alias(libs.plugins.screenshot)
   alias(libs.plugins.baselineprofile)
 }
+
+// Release signing is read from keystore.properties (local, gitignored) or, when
+// absent, from environment variables (CI). Each value falls back local -> env so
+// the same config serves both. If no keystore is configured the release build
+// falls back to debug signing, keeping CI/contributor builds working without secrets.
+val keystorePropertiesFile = rootProject.file("keystore.properties")
+val keystoreProperties = Properties().apply {
+    if (keystorePropertiesFile.exists()) {
+        keystorePropertiesFile.inputStream().use { load(it) }
+    }
+}
+fun signingValue(propKey: String, envKey: String): String? =
+    keystoreProperties.getProperty(propKey) ?: System.getenv(envKey)
 
 android {
     namespace = "com.jpcexample.tedtalks"
@@ -17,14 +32,36 @@ android {
         versionName = "1.0"
     }
 
+    signingConfigs {
+        create("release") {
+            val storeFilePath = signingValue("storeFile", "RELEASE_STORE_FILE")
+            if (storeFilePath != null) {
+                storeFile = rootProject.file(storeFilePath)
+                storePassword = signingValue("storePassword", "RELEASE_STORE_PASSWORD")
+                keyAlias = signingValue("keyAlias", "RELEASE_KEY_ALIAS")
+                keyPassword = signingValue("keyPassword", "RELEASE_KEY_PASSWORD")
+            }
+        }
+    }
+
     buildTypes {
         release {
             isMinifyEnabled = true
             isShrinkResources = true
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
-            // Sign release with the debug key so the minified build is installable
-            // for local verification. Replace with a real release key before publishing.
-            signingConfig = signingConfigs.getByName("debug")
+            // Use the real release key when configured; otherwise fall back to the
+            // debug key so the minified build is still installable for verification
+            // and CI/contributor builds don't need the signing secrets.
+            val releaseSigning = signingConfigs.getByName("release")
+            signingConfig = if (releaseSigning.storeFile != null) {
+                releaseSigning
+            } else {
+                logger.warn(
+                    "No release keystore configured (keystore.properties / RELEASE_* env). " +
+                        "Falling back to debug signing for the release build."
+                )
+                signingConfigs.getByName("debug")
+            }
         }
     }
     compileOptions {
