@@ -41,3 +41,68 @@ jobs:
 
     - name: Build Debug APK
       run: ./gradlew assembleDebug
+
+  instrumented-tests:
+    name: Instrumented Tests (API 37.0 emulator)
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v5
+
+    - name: set up JDK 17
+      uses: actions/setup-java@v5
+      with:
+        java-version: '17'
+        distribution: 'temurin'
+        cache: gradle
+
+    - name: Grant execute permission for gradlew
+      run: chmod +x gradlew
+
+    # The Android emulator needs hardware acceleration (KVM) to run an x86_64
+    # system image at a usable speed. KVM is available on the Linux runners but
+    # the device node needs permissions opened up for the action.
+    - name: Enable KVM
+      run: |
+        echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+        sudo udevadm control --reload-rules
+        sudo udevadm trigger --name-match=kvm
+
+    - name: AVD cache
+      uses: actions/cache@v4
+      id: avd-cache
+      with:
+        path: |
+          ~/.android/avd/*
+          ~/.android/adb*
+        key: avd-37.0
+
+    - name: Create AVD and generate snapshot for caching
+      if: steps.avd-cache.outputs.cache-hit != 'true'
+      uses: reactivecircus/android-emulator-runner@v2
+      with:
+        api-level: '37.0'
+        arch: x86_64
+        target: google_apis
+        force-avd-creation: false
+        emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
+        disable-animations: false
+        script: echo "Generated AVD snapshot for caching."
+
+    - name: Run instrumented tests
+      uses: reactivecircus/android-emulator-runner@v2
+      with:
+        api-level: '37.0'
+        arch: x86_64
+        target: google_apis
+        force-avd-creation: false
+        emulator-options: -no-snapshot-save -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none -verbose -debug-metrics -metrics-collection
+        disable-animations: true
+        script: ./gradlew :app:connectedDebugAndroidTest
+
+    - name: Upload instrumented test report on failure
+      if: failure()
+      uses: actions/upload-artifact@v4
+      with:
+        name: instrumented-test-report
+        path: app/build/reports/androidTests/connected/
