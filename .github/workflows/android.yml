@@ -121,6 +121,7 @@ jobs:
     # hold off adb until boot completes (-delay-adb). cores is matrix-tuned and
     # left to the emulator default where unset.
     - name: Run instrumented tests
+      if: matrix.api-level != '37.0'
       uses: reactivecircus/android-emulator-runner@v2
       with:
         api-level: ${{ matrix.api-level }}
@@ -137,6 +138,56 @@ jobs:
           adb wait-for-device
           adb logcat -v time > "${{ github.workspace }}/emulator_logcat.txt" &
           ./gradlew :app:connectedDebugAndroidTest || { echo "=== test run failed; capturing guest diagnostics ==="; adb root >/dev/null 2>&1 || true; adb wait-for-device || true; echo "----- crash logcat buffer -----"; adb logcat -d -b crash 2>/dev/null | tail -n 300 || true; echo "----- /data/tombstones -----"; for f in $(adb shell ls /data/tombstones 2>/dev/null | tr -d '\r'); do case "$f" in *.pb) ;; *) echo "===== $f ====="; adb shell cat "/data/tombstones/$f" 2>/dev/null || true ;; esac; done; exit 1; }
+
+    - name: Run Manual Emulator and Capture Tombstones (API 37)
+      if: matrix.api-level == '37.0'
+      run: |
+        export ANDROID_HOME=/usr/local/lib/android/sdk
+        export PATH=$ANDROID_HOME/cmdline-tools/latest/bin:$ANDROID_HOME/emulator:$ANDROID_HOME/platform-tools:$PATH
+
+        # 1. Install SDK, tools and system image
+        echo "y" | sdkmanager --licenses > /dev/null
+        sdkmanager --install "system-images;android-37.0;google_apis_ps16k;x86_64" "platforms;android-37" "build-tools;36.0.0" platform-tools emulator --channel=0 > /dev/null
+
+        # 2. Create AVD
+        echo "no" | avdmanager create avd --force -n test --package "system-images;android-37.0;google_apis_ps16k;x86_64"
+        printf "hw.cpu.ncore=4\nhw.ramSize=4096M\ndisk.dataPartition.size=8192M\n" >> ~/.android/avd/test.avd/config.ini
+
+        # 3. Start Emulator in the background (with logging)
+        emulator -port 5554 -avd test -no-snapshot -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none -memory 4096 -delay-adb -verbose -show-kernel -debug-metrics -metrics-collection -feature HasSharedSlotsHostMemoryAllocator > emulator_stdout.log 2>&1 &
+
+        # 4. Wait for boot completion
+        echo "Waiting for emulator to boot (up to 300s)..."
+        timeout 300 bash -c '
+          until adb -s emulator-5554 shell getprop sys.boot_completed 2>/dev/null | grep -q "1"; do
+            sleep 2
+          done
+        ' || echo "Boot wait timed out or crashed"
+
+        # 5. Trigger the unlock event (known to crash SurfaceFlinger)
+        echo "Triggering unlock keyevent to wake up renderer..."
+        adb -s emulator-5554 shell input keyevent 82 || echo "Unlock keyevent failed (as expected due to crash)"
+
+        # 6. Wait a moment for tombstoned to write the crash dump
+        sleep 5
+
+        # 7. Collect and dump the tombstones
+        echo "=== Listing /data/tombstones ==="
+        adb -s emulator-5554 shell ls -la /data/tombstones || true
+
+        echo "=== Pulling and Displaying Tombstones ==="
+        adb -s emulator-5554 root || true
+        adb -s emulator-5554 wait-for-device || true
+        for f in $(adb -s emulator-5554 shell ls /data/tombstones 2>/dev/null | tr -d '\r'); do
+          echo "===== Tombstone: $f ====="
+          adb -s emulator-5554 shell cat "/data/tombstones/$f" 2>/dev/null || true
+        done
+
+        # Also dump the end of the emulator log if any
+        echo "=== End of Emulator stdout/stderr log ==="
+        tail -n 200 emulator_stdout.log || true
+
+        exit 1 # Fail the step to make the failure/logs visible in GHA panel
 
     - name: Dump guest logcat on failure
       if: failure()
