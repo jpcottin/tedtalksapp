@@ -68,37 +68,36 @@ jobs:
         sudo udevadm control --reload-rules
         sudo udevadm trigger --name-match=kvm
 
-    - name: AVD cache
-      uses: actions/cache@v4
-      id: avd-cache
-      with:
-        path: |
-          ~/.android/avd/*
-          ~/.android/adb*
-        key: avd-37.0
-
-    - name: Create AVD and generate snapshot for caching
-      if: steps.avd-cache.outputs.cache-hit != 'true'
-      uses: reactivecircus/android-emulator-runner@v2
-      with:
-        api-level: '37.0'
-        arch: x86_64
-        target: google_apis_ps16k
-        force-avd-creation: false
-        emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
-        disable-animations: false
-        script: echo "Generated AVD snapshot for caching."
-
+    # The ps16k (16 KB page-size) system image is heavier than a stock image and
+    # will not finish booting under the runner-default RAM, so we give it 4GB RAM
+    # / 768MB heap, cold-boot it (-no-snapshot), and allow a generous boot timeout.
     - name: Run instrumented tests
       uses: reactivecircus/android-emulator-runner@v2
       with:
         api-level: '37.0'
         arch: x86_64
         target: google_apis_ps16k
-        force-avd-creation: false
-        emulator-options: -no-snapshot-save -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none -verbose -debug-metrics -metrics-collection
+        force-avd-creation: true
+        ram-size: 4096M
+        heap-size: 768M
+        emulator-boot-timeout: 900
+        emulator-options: -no-snapshot -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none -memory 4096 -verbose -debug-metrics -metrics-collection
         disable-animations: true
-        script: ./gradlew :app:connectedDebugAndroidTest
+        script: |
+          adb wait-for-device
+          # Stream guest logcat to a host file so a boot/test failure is diagnosable.
+          adb logcat -v time > "${{ github.workspace }}/emulator_logcat.txt" &
+          ./gradlew :app:connectedDebugAndroidTest
+
+    - name: Dump guest logcat on failure
+      if: failure()
+      run: |
+        echo "=== Emulator Logcat (last 1000 lines) ==="
+        if [ -f "${{ github.workspace }}/emulator_logcat.txt" ]; then
+          tail -n 1000 "${{ github.workspace }}/emulator_logcat.txt"
+        else
+          echo "Logcat file not found."
+        fi
 
     - name: Upload instrumented test report on failure
       if: failure()
