@@ -54,15 +54,14 @@ jobs:
           - api-level: '36'
             target: google_apis
             ram-size: 2048M
-            heap-size: 512M
             gpu: auto
           # API 37.0 16 KB page-size image — heavier, needs more RAM. -gpu auto
           # panics the ps16k kernel, so use the lavapipe software Vulkan path.
           - api-level: '37.0'
             target: google_apis_ps16k
             ram-size: 5120M
-            heap-size: 768M
             gpu: lavapipe
+            cores: 4
 
     steps:
     - uses: actions/checkout@v5
@@ -86,10 +85,11 @@ jobs:
         sudo udevadm control --reload-rules
         sudo udevadm trigger --name-match=kvm
 
-    # RAM/heap are matrix-tuned per image. We cold-boot (-no-snapshot), enlarge
-    # the userdata partition so the app APK can stage, allow a generous boot
-    # timeout, let the emulator pick the GPU mode (-gpu auto), and hold off adb
-    # until boot completes (-delay-adb).
+    # RAM and GPU mode are matrix-tuned per image (heap-size is left at the
+    # emulator default). We cold-boot (-no-snapshot), enlarge the userdata
+    # partition so the app APK can stage, allow a generous boot timeout, and
+    # hold off adb until boot completes (-delay-adb). cores is matrix-tuned and
+    # left to the emulator default where unset.
     - name: Run instrumented tests
       uses: reactivecircus/android-emulator-runner@v2
       with:
@@ -98,7 +98,7 @@ jobs:
         target: ${{ matrix.target }}
         force-avd-creation: true
         ram-size: ${{ matrix.ram-size }}
-        heap-size: ${{ matrix.heap-size }}
+        cores: ${{ matrix.cores }}
         disk-size: 8192M
         emulator-boot-timeout: 900
         emulator-options: -no-snapshot -no-window -gpu ${{ matrix.gpu }} -noaudio -no-boot-anim -camera-back none -delay-adb -verbose -show-kernel -debug-metrics -metrics-collection
