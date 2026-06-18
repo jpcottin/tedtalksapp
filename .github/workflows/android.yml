@@ -55,11 +55,14 @@ jobs:
             target: google_apis
             ram-size: 2048M
             heap-size: 512M
-          # API 37.0 16 KB page-size image — heavier, needs more RAM.
+            gpu: auto
+          # API 37.0 16 KB page-size image — heavier, needs more RAM. -gpu auto
+          # panics the ps16k kernel, so use the lavapipe software Vulkan path.
           - api-level: '37.0'
             target: google_apis_ps16k
-            ram-size: 4096M
+            ram-size: 5120M
             heap-size: 768M
+            gpu: lavapipe
 
     steps:
     - uses: actions/checkout@v5
@@ -98,7 +101,7 @@ jobs:
         heap-size: ${{ matrix.heap-size }}
         disk-size: 8192M
         emulator-boot-timeout: 900
-        emulator-options: -no-snapshot -no-window -gpu auto -noaudio -no-boot-anim -camera-back none -delay-adb -verbose -show-kernel -debug-metrics -metrics-collection
+        emulator-options: -no-snapshot -no-window -gpu ${{ matrix.gpu }} -noaudio -no-boot-anim -camera-back none -delay-adb -verbose -show-kernel -debug-metrics -metrics-collection
         disable-animations: true
         script: |
           adb wait-for-device
