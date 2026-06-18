@@ -147,7 +147,7 @@ jobs:
 
         # 1. Install SDK, tools and system image
         echo "y" | sdkmanager --licenses > /dev/null
-        sdkmanager --install "system-images;android-37.0;google_apis_ps16k;x86_64" "platforms;android-37" "build-tools;36.0.0" platform-tools emulator --channel=0 > /dev/null
+        sdkmanager --install "system-images;android-37.0;google_apis_ps16k;x86_64" "platforms;android-37.0" "build-tools;36.0.0" platform-tools emulator --channel=0 > /dev/null
 
         # 2. Create AVD
         echo "no" | avdmanager create avd --force -n test --package "system-images;android-37.0;google_apis_ps16k;x86_64"
