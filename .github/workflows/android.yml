@@ -43,8 +43,23 @@ jobs:
       run: ./gradlew assembleDebug
 
   instrumented-tests:
-    name: Instrumented Tests (API 37.0 emulator)
+    name: Instrumented Tests (API ${{ matrix.api-level }} emulator)
     runs-on: ubuntu-latest
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # Stock API 36 image — the baseline we expect to pass.
+          - api-level: '36'
+            target: google_apis
+            ram-size: 2048M
+            heap-size: 512M
+          # API 37.0 16 KB page-size image — heavier, needs more RAM.
+          - api-level: '37.0'
+            target: google_apis_ps16k
+            ram-size: 4096M
+            heap-size: 768M
 
     steps:
     - uses: actions/checkout@v5
@@ -68,23 +83,22 @@ jobs:
         sudo udevadm control --reload-rules
         sudo udevadm trigger --name-match=kvm
 
-    # The ps16k (16 KB page-size) system image is heavier than a stock image and
-    # will not finish booting under the runner-default RAM, so we give it 4GB RAM
-    # / 768MB heap, cold-boot it (-no-snapshot), and allow a generous boot timeout.
+    # RAM/heap are matrix-tuned per image. We cold-boot (-no-snapshot), enlarge
+    # the userdata partition so the app APK can stage, allow a generous boot
+    # timeout, let the emulator pick the GPU mode (-gpu auto), and hold off adb
+    # until boot completes (-delay-adb).
     - name: Run instrumented tests
       uses: reactivecircus/android-emulator-runner@v2
       with:
-        api-level: '37.0'
+        api-level: ${{ matrix.api-level }}
         arch: x86_64
-        target: google_apis_ps16k
+        target: ${{ matrix.target }}
         force-avd-creation: true
-        ram-size: 4096M
-        heap-size: 768M
-        # Default userdata partition is too small to stage the app APK
-        # ("not enough space" on install-create), so provision a larger disk.
+        ram-size: ${{ matrix.ram-size }}
+        heap-size: ${{ matrix.heap-size }}
         disk-size: 8192M
         emulator-boot-timeout: 900
-        emulator-options: -no-snapshot -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none -memory 4096 -verbose -show-kernel -debug-metrics -metrics-collection
+        emulator-options: -no-snapshot -no-window -gpu auto -noaudio -no-boot-anim -camera-back none -delay-adb -verbose -show-kernel -debug-metrics -metrics-collection
         disable-animations: true
         script: |
           adb wait-for-device
@@ -106,5 +120,5 @@ jobs:
       if: failure()
       uses: actions/upload-artifact@v4
       with:
-        name: instrumented-test-report
+        name: instrumented-test-report-api${{ matrix.api-level }}
         path: app/build/reports/androidTests/connected/
