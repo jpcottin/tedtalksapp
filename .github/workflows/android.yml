@@ -134,30 +134,8 @@ jobs:
         disable-animations: true
         script: |
           adb wait-for-device
-          # Stream guest logcat to a host file so a boot/test failure is diagnosable.
           adb logcat -v time > "${{ github.workspace }}/emulator_logcat.txt" &
-          # Run the tests but capture native crash tombstones (e.g. the
-          # SurfaceFlinger SIGABRT) *before* the action tears the emulator down,
-          # since a later step can no longer reach the device.
-          set +e
-          ./gradlew :app:connectedDebugAndroidTest
-          status=$?
-          set -e
-          if [ "$status" -ne 0 ]; then
-            echo "=== Test run failed (status=$status); capturing guest diagnostics ==="
-            adb root >/dev/null 2>&1 && adb wait-for-device || true
-            echo "----- crash logcat buffer -----"
-            adb logcat -d -b crash 2>/dev/null | tail -n 300 || true
-            echo "----- /data/tombstones -----"
-            adb shell 'ls /data/tombstones 2>/dev/null' | tr -d '\r' | while read -r f; do
-              [ -n "$f" ] || continue
-              case "$f" in
-                *.pb) ;;  # skip binary protobuf copies; the text tombstone has the same info
-                *) echo "===== /data/tombstones/$f ====="; adb shell "cat /data/tombstones/$f" 2>/dev/null || true ;;
-              esac
-            done
-          fi
-          exit "$status"
+          ./gradlew :app:connectedDebugAndroidTest || { echo "=== test run failed; capturing guest diagnostics ==="; adb root >/dev/null 2>&1 || true; adb wait-for-device || true; echo "----- crash logcat buffer -----"; adb logcat -d -b crash 2>/dev/null | tail -n 300 || true; echo "----- /data/tombstones -----"; for f in $(adb shell ls /data/tombstones 2>/dev/null | tr -d '\r'); do case "$f" in *.pb) ;; *) echo "===== $f ====="; adb shell cat "/data/tombstones/$f" 2>/dev/null || true ;; esac; done; exit 1; }
 
     - name: Dump guest logcat on failure
       if: failure()
