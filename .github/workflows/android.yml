@@ -60,7 +60,7 @@ jobs:
           # swiftshader_indirect is the only mode that boots this image.
           - api-level: '37.0'
             target: google_apis_ps16k
-            ram-size: 5120M
+            ram-size: 4096M
             gpu: swiftshader_indirect
             cores: 4
 
