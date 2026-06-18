@@ -80,8 +80,11 @@ jobs:
         force-avd-creation: true
         ram-size: 4096M
         heap-size: 768M
+        # Default userdata partition is too small to stage the app APK
+        # ("not enough space" on install-create), so provision a larger disk.
+        disk-size: 8192M
         emulator-boot-timeout: 900
-        emulator-options: -no-snapshot -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none -memory 4096 -verbose -debug-metrics -metrics-collection
+        emulator-options: -no-snapshot -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none -memory 4096 -verbose -show-kernel -debug-metrics -metrics-collection
         disable-animations: true
         script: |
           adb wait-for-device
