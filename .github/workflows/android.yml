@@ -92,7 +92,7 @@ jobs:
             gpu: swiftshader_indirect
             cores: 4
             experimental: true
-            extra-options: -feature HasSharedSlotsHostMemoryAllocator
+            extra-options: -feature GlDirectMem,HasSharedSlotsHostMemoryAllocator
           - api-level: '37.0'
             suffix: 'lavapipe'
             target: google_apis_ps16k
@@ -101,7 +101,7 @@ jobs:
             gpu: lavapipe
             cores: 4
             experimental: true
-            extra-options: -feature HasSharedSlotsHostMemoryAllocator
+            extra-options: -feature GlDirectMem,HasSharedSlotsHostMemoryAllocator
 
     steps:
     - uses: actions/checkout@v5
