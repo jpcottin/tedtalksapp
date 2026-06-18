@@ -56,11 +56,12 @@ jobs:
             ram-size: 2048M
             gpu: auto
           # API 37.0 16 KB page-size image — heavier, needs more RAM. -gpu auto
-          # panics the ps16k kernel, so use the lavapipe software Vulkan path.
+          # and -gpu lavapipe both panic/loop the ps16k kernel before userspace;
+          # swiftshader_indirect is the only mode that boots this image.
           - api-level: '37.0'
             target: google_apis_ps16k
             ram-size: 5120M
-            gpu: lavapipe
+            gpu: swiftshader_indirect
             cores: 4
 
     steps:
