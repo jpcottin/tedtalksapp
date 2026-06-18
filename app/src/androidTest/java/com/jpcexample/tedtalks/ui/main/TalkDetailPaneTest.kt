@@ -1,6 +1,6 @@
 package com.jpcexample.tedtalks.ui.main
 
-import androidx.activity.ComponentActivity
+import com.jpcexample.tedtalks.TestActivity
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
@@ -13,7 +13,7 @@ import org.junit.Test
 
 class TalkDetailPaneTest {
 
-    @get:Rule val composeTestRule = createAndroidComposeRule<ComponentActivity>()
+    @get:Rule val composeTestRule = createAndroidComposeRule<TestActivity>()
 
     private val talk = TalkItem(
         id = "1",

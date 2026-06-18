@@ -1,6 +1,6 @@
 package com.jpcexample.tedtalks.ui.main
 
-import androidx.activity.ComponentActivity
+import com.jpcexample.tedtalks.TestActivity
 import androidx.compose.ui.test.assertHasClickAction
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
@@ -13,7 +13,7 @@ import org.junit.Test
 
 class TalkListPaneTest {
 
-    @get:Rule val composeTestRule = createAndroidComposeRule<ComponentActivity>()
+    @get:Rule val composeTestRule = createAndroidComposeRule<TestActivity>()
 
     private val talks = listOf(
         TalkItem("1", "First talk", "Alice", "desc", "May 1, 2025", "5:00", "", "", null),
