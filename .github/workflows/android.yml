@@ -150,6 +150,7 @@ jobs:
         sdkmanager --install "system-images;android-37.0;google_apis_ps16k;x86_64" "platforms;android-37.0" "build-tools;36.0.0" platform-tools emulator --channel=0 > /dev/null
 
         # 2. Create AVD
+        mkdir -p ~/.android/avd/test.avd
         echo "no" | avdmanager create avd --force -n test --package "system-images;android-37.0;google_apis_ps16k;x86_64"
         printf "hw.cpu.ncore=4\nhw.ramSize=4096M\ndisk.dataPartition.size=8192M\n" >> ~/.android/avd/test.avd/config.ini
 
