@@ -1,6 +1,6 @@
 package com.jpcexample.tedtalks
 
-import androidx.activity.ComponentActivity
+import com.jpcexample.tedtalks.TestActivity
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithText
@@ -20,7 +20,7 @@ import org.junit.Test
  */
 class MainNavigationTest {
 
-    @get:Rule val composeTestRule = createAndroidComposeRule<ComponentActivity>()
+    @get:Rule val composeTestRule = createAndroidComposeRule<TestActivity>()
 
     private class StaticRepo(val talks: List<TalkItem>) : TedTalksRepository {
         override suspend fun fetchTalks(): Result<List<TalkItem>> = Result.success(talks)
