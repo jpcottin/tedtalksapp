@@ -45,15 +45,7 @@ jobs:
   instrumented-tests:
     name: Instrumented Tests (API ${{ matrix.api-level }}${{ matrix.suffix && format(' {0}', matrix.suffix) || '' }} emulator)
     runs-on: ubuntu-latest
-    # API 37.0 (ps16k) is experimental and runs for visibility without gating.
-    # Root cause of past failures: the default 'stable' SDK channel ships
-    # emulator 36.6.11, which predates the 16 KB-page ps16k image. The stale
-    # emulator advertises the host GL extension ANDROID_EMU_read_color_buffer_dma,
-    # but the image's new gralloc5 mapper (mapper.ranchu) asserts
-    # !hasReadColorBufferDma and SurfaceFlinger crash-loops (SIGABRT) — so every
-    # test fails to launch its activity. The 37.0 legs therefore pull the emulator
-    # from the 'canary' channel (37.x), which matches the image; that pairing runs
-    # the suite green on real hardware. See matrix `channel` below.
+    # 37.0 legs run non-blocking (matrix.experimental); the rest gate.
     continue-on-error: ${{ matrix.experimental || false }}
 
     strategy:
@@ -86,14 +78,10 @@ jobs:
             ram-size: 2048M
             memory: 2048
             gpu: auto
-          # API 37.0 16 KB page-size image — heavier, needs more RAM, and must be
-          # paired with a canary-channel emulator (37.x) that understands the image
-          # (see the gralloc/read_color_buffer_dma note on the job above). Kept
-          # non-blocking (experimental) until the canary pairing proves stable.
+          # API 37.0 ps16k legs (set channel: canary on a leg to reproduce green).
           - api-level: '37.0'
             suffix: 'swiftshader'
             target: google_apis_ps16k
-            channel: canary
             ram-size: 4096M
             memory: 4096
             gpu: swiftshader_indirect
@@ -103,7 +91,6 @@ jobs:
           - api-level: '37.0'
             suffix: 'lavapipe'
             target: google_apis_ps16k
-            channel: canary
             ram-size: 4096M
             memory: 4096
             gpu: lavapipe
@@ -113,7 +100,6 @@ jobs:
           - api-level: '37.0'
             suffix: 'auto'
             target: google_apis_ps16k
-            channel: canary
             ram-size: 4096M
             memory: 4096
             gpu: auto
@@ -154,8 +140,6 @@ jobs:
         api-level: ${{ matrix.api-level }}
         arch: x86_64
         target: ${{ matrix.target }}
-        # SDK channel for the emulator + system image. The ps16k API 37.0 legs need
-        # 'canary' (newer emulator matched to the image); all others use 'stable'.
         channel: ${{ matrix.channel || 'stable' }}
         force-avd-creation: true
         ram-size: ${{ matrix.ram-size }}
@@ -187,5 +171,5 @@ jobs:
       if: failure()
       uses: actions/upload-artifact@v4
       with:
-        name: instrumented-test-report-api${{ matrix.api-level }}
+        name: instrumented-test-report-api${{ matrix.api-level }}${{ matrix.suffix && format('-{0}', matrix.suffix) || '' }}
         path: app/build/reports/androidTests/connected/
