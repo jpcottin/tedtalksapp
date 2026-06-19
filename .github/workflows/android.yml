@@ -110,6 +110,16 @@ jobs:
             cores: 4
             experimental: true
             extra-options: -feature GLDirectMem,HasSharedSlotsHostMemoryAllocator
+          - api-level: '37.0'
+            suffix: 'auto'
+            target: google_apis_ps16k
+            channel: canary
+            ram-size: 4096M
+            memory: 4096
+            gpu: auto
+            cores: 4
+            experimental: true
+            extra-options: -feature GLDirectMem,HasSharedSlotsHostMemoryAllocator
 
     steps:
     - uses: actions/checkout@v5
@@ -155,6 +165,10 @@ jobs:
         emulator-options: -no-snapshot -no-window -gpu ${{ matrix.gpu }} -noaudio -no-boot-anim -camera-back none -memory ${{ matrix.memory }} -delay-adb -verbose -show-kernel -debug-metrics -metrics-collection ${{ matrix.extra-options || '' }}
         disable-animations: true
         script: |
+          echo "===== AVD config.ini ====="; cat "$HOME/.android/avd/test.avd/config.ini" 2>/dev/null || echo "(config.ini not found)"
+          echo "===== emulator advancedFeatures.ini ====="; cat "${ANDROID_SDK_ROOT:-$ANDROID_HOME}/emulator/lib/advancedFeatures.ini" 2>/dev/null || echo "(not found)"
+          echo "===== emulator advancedFeaturesCanary.ini ====="; cat "${ANDROID_SDK_ROOT:-$ANDROID_HOME}/emulator/lib/advancedFeaturesCanary.ini" 2>/dev/null || echo "(not found)"
+          echo "===== system-image advancedFeatures*.ini (if any) ====="; find "${ANDROID_SDK_ROOT:-$ANDROID_HOME}/system-images/android-37.0" -iname 'advancedFeatures*.ini' -exec sh -c 'echo "--- $1 ---"; cat "$1"' _ {} \; 2>/dev/null || echo "(none)"
           adb wait-for-device
           adb logcat -v time > "${{ github.workspace }}/emulator_logcat.txt" &
           ./gradlew :app:connectedDebugAndroidTest || { echo "=== test run failed; capturing guest diagnostics ==="; adb root >/dev/null 2>&1 || true; adb wait-for-device || true; echo "----- crash logcat buffer -----"; adb logcat -d -b crash 2>/dev/null | tail -n 300 || true; echo "----- /data/tombstones -----"; for f in $(adb shell ls /data/tombstones 2>/dev/null | tr -d '\r'); do case "$f" in *.pb) ;; *) echo "===== $f ====="; adb shell cat "/data/tombstones/$f" 2>/dev/null || true ;; esac; done; exit 1; }
