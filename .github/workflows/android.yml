@@ -78,7 +78,7 @@ jobs:
             ram-size: 2048M
             memory: 2048
             gpu: auto
-          # API 37.0 ps16k legs (set channel: canary on a leg to reproduce green).
+          # API 37.0 ps16k legs (need -feature GLDirectMem; see extra-options).
           - api-level: '37.0'
             suffix: 'swiftshader'
             target: google_apis_ps16k
