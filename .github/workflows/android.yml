@@ -245,30 +245,33 @@ jobs:
         android info
         android sdk list | head -40
 
-    - name: Install canary emulator with the CLI
+    - name: Install canary emulator and API 37.0 ps16k image with the CLI
       run: |
-        android sdk install --canary emulator platform-tools
-        android sdk list | grep -iE "^  emulator" || true
+        android sdk install --canary emulator platform-tools system-images/android-37.0/google_apis_ps16k/x86_64
+        android sdk list | grep -iE "^  emulator|android-37" || true
 
-    # Hybrid: 'android emulator create' is profile-based and picks its own image
-    # (observed: android-36 google_apis_playstore, whose first-boot Play overlays
-    # steal window focus and break Espresso), so the AVD is created with the
-    # updated avdmanager on the pinned image; the CLI still boots and stops it.
-    - name: Create pinned API 37.0 AVD with avdmanager
+    # 'android emulator create' is profile-based with no way to pin an image (it
+    # picks google_apis_playstore, whose first-boot Play overlays steal window
+    # focus and break Espresso). An AVD is just ini files, so create the profile
+    # with the CLI and retarget it at the pinned image — no sdkmanager/avdmanager.
+    - name: Create AVD with the CLI and retarget it to API 37.0 ps16k
       run: |
-        SDK="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-/usr/local/lib/android/sdk}}"
-        yes | "$SDK/cmdline-tools/latest/bin/sdkmanager" --install "cmdline-tools;latest" > /dev/null
-        if [ -d "$SDK/cmdline-tools/latest-2" ]; then
-          rm -rf "$SDK/cmdline-tools/latest"
-          mv "$SDK/cmdline-tools/latest-2" "$SDK/cmdline-tools/latest"
-        fi
-        yes | "$SDK/cmdline-tools/latest/bin/sdkmanager" --install 'system-images;android-37.0;google_apis_ps16k;x86_64' --channel=3 > /dev/null
-        echo no | "$SDK/cmdline-tools/latest/bin/avdmanager" create avd --force -n test --package 'system-images;android-37.0;google_apis_ps16k;x86_64'
-        # avdmanager defaults are too small for the ps16k image.
-        printf 'hw.ramSize=4096\nhw.cpu.ncore=4\ndisk.dataPartition.size=8192M\n' >> "$HOME/.android/avd/test.avd/config.ini"
-        echo "===== AVD root ini ====="; cat "$HOME/.android/avd/test.ini"
-        android emulator list
-        echo "DEVICE=test" >> "$GITHUB_ENV"
+        android emulator create medium_phone
+        DEVICE="$(android emulator list | head -n1)"
+        echo "CLI created AVD: $DEVICE"
+        AVD_DIR="$HOME/.android/avd/$DEVICE.avd"
+        sed -i 's/^target=.*/target=android-37.0/' "$HOME/.android/avd/$DEVICE.ini"
+        sed -i \
+          -e 's#^image.sysdir.1=.*#image.sysdir.1=system-images/android-37.0/google_apis_ps16k/x86_64/#' \
+          -e 's/^tag.id=.*/tag.id=google_apis/' \
+          -e 's/^tag.display=.*/tag.display=Google APIs/' \
+          -e 's/^PlayStore.enabled=.*/PlayStore.enabled=false/' \
+          -e 's/^hw.ramSize=.*/hw.ramSize=4096/' \
+          "$AVD_DIR/config.ini"
+        grep -qE "^disk.dataPartition.size=" "$AVD_DIR/config.ini" && sed -i 's/^disk.dataPartition.size=.*/disk.dataPartition.size=8192M/' "$AVD_DIR/config.ini" || echo "disk.dataPartition.size=8192M" >> "$AVD_DIR/config.ini"
+        echo "===== root ini ====="; cat "$HOME/.android/avd/$DEVICE.ini"
+        echo "===== config.ini ====="; cat "$AVD_DIR/config.ini"
+        echo "DEVICE=$DEVICE" >> "$GITHUB_ENV"
 
     # 'android emulator start' passes neither -noaudio nor -no-window, so the
     # runner needs libpulse and an X display.
