@@ -213,6 +213,7 @@ jobs:
   android-cli-experiment:
     name: Android CLI experiment (API 37.0 canary emulator)
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     continue-on-error: true
 
     steps:
@@ -258,19 +259,33 @@ jobs:
       run: |
         android emulator create medium_phone
         DEVICE="$(android emulator list | head -n1)"
-        echo "CLI created AVD: $DEVICE"
         AVD_DIR="$HOME/.android/avd/$DEVICE.avd"
+        if [ -z "$DEVICE" ] || [ ! -d "$AVD_DIR" ]; then
+          echo "ERROR: created AVD not found (DEVICE='$DEVICE')"
+          ls -la "$HOME/.android/avd/" || true
+          exit 1
+        fi
+        echo "CLI created AVD: $DEVICE"
+        CFG="$AVD_DIR/config.ini"
+        # Replace-or-append so a key missing from the CLI-written config cannot
+        # silently keep its profile default.
+        set_ini() {
+          if grep -q "^$1=" "$CFG"; then sed -i "s#^$1=.*#$1=$2#" "$CFG"; else echo "$1=$2" >> "$CFG"; fi
+        }
         sed -i 's/^target=.*/target=android-37.0/' "$HOME/.android/avd/$DEVICE.ini"
-        sed -i \
-          -e 's#^image.sysdir.1=.*#image.sysdir.1=system-images/android-37.0/google_apis_ps16k/x86_64/#' \
-          -e 's/^tag.id=.*/tag.id=google_apis/' \
-          -e 's/^tag.display=.*/tag.display=Google APIs/' \
-          -e 's/^PlayStore.enabled=.*/PlayStore.enabled=false/' \
-          -e 's/^hw.ramSize=.*/hw.ramSize=4096/' \
-          "$AVD_DIR/config.ini"
-        grep -qE "^disk.dataPartition.size=" "$AVD_DIR/config.ini" && sed -i 's/^disk.dataPartition.size=.*/disk.dataPartition.size=8192M/' "$AVD_DIR/config.ini" || echo "disk.dataPartition.size=8192M" >> "$AVD_DIR/config.ini"
+        set_ini image.sysdir.1 'system-images/android-37.0/google_apis_ps16k/x86_64/'
+        set_ini tag.id google_apis
+        set_ini tag.display 'Google APIs'
+        set_ini PlayStore.enabled false
+        set_ini hw.ramSize 4096
+        set_ini hw.cpu.ncore 4
+        set_ini disk.dataPartition.size 8192M
+        # Optional plural tag keys, if the profile wrote them, must not keep
+        # claiming the playstore image.
+        if grep -q '^tag.ids=' "$CFG"; then sed -i 's/^tag.ids=.*/tag.ids=google_apis,page_size_16kb/' "$CFG"; fi
+        if grep -q '^tag.displaynames=' "$CFG"; then sed -i 's/^tag.displaynames=.*/tag.displaynames=Google APIs,16 KB Page Size/' "$CFG"; fi
         echo "===== root ini ====="; cat "$HOME/.android/avd/$DEVICE.ini"
-        echo "===== config.ini ====="; cat "$AVD_DIR/config.ini"
+        echo "===== config.ini ====="; cat "$CFG"
         echo "DEVICE=$DEVICE" >> "$GITHUB_ENV"
 
     # 'android emulator start' passes neither -noaudio nor -no-window, so the
@@ -290,7 +305,7 @@ jobs:
         echo "Starting AVD: $DEVICE"
         # start returns 0 even if the emulator process dies; verify via adb.
         android emulator start --cold "$DEVICE"
-        for i in $(seq 1 30); do adb get-state >/dev/null 2>&1 && break; sleep 2; done
+        for _ in $(seq 1 30); do adb get-state >/dev/null 2>&1 && break; sleep 2; done
         adb get-state >/dev/null 2>&1 || { echo "===== emulator.log ====="; cat "$HOME/.android/$DEVICE/emulator.log" 2>/dev/null || echo "(no emulator.log)"; exit 1; }
         adb devices
         adb shell getprop ro.build.version.sdk
