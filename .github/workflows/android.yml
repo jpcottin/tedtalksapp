@@ -285,6 +285,11 @@ jobs:
         adb devices
         adb shell getprop ro.build.version.sdk
         adb shell getprop sys.boot_completed
+        # The CLI has no disable-animations equivalent (emulator-runner sets it);
+        # Espresso needs animations off.
+        adb shell settings put global window_animation_scale 0
+        adb shell settings put global transition_animation_scale 0
+        adb shell settings put global animator_duration_scale 0
         adb logcat -v time > "${{ github.workspace }}/emulator_logcat.txt" &
 
     - name: Dump emulator.log on failure
