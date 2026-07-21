@@ -78,18 +78,18 @@ jobs:
             ram-size: 2048M
             memory: 2048
             gpu: auto
-          # API 37.0 ps16k legs (need channel: canary to fetch platforms;android-37.0 and system-images;android-37.0).
+          # API 37.x ps16k legs. channel selects the emulator (and image revision)
+          # via sdkmanager --channel.
           - api-level: '37.0'
-            suffix: 'swiftshader'
+            suffix: 'stable-lavapipe'
             target: google_apis_ps16k
-            channel: canary
             ram-size: 4096M
             memory: 4096
-            gpu: swiftshader_indirect
+            gpu: lavapipe
             cores: 4
             experimental: true
           - api-level: '37.0'
-            suffix: 'lavapipe'
+            suffix: 'canary-lavapipe'
             target: google_apis_ps16k
             channel: canary
             ram-size: 4096M
@@ -98,7 +98,7 @@ jobs:
             cores: 4
             experimental: true
           - api-level: '37.0'
-            suffix: 'auto'
+            suffix: 'canary-auto'
             target: google_apis_ps16k
             channel: canary
             ram-size: 4096M
@@ -106,19 +106,8 @@ jobs:
             gpu: auto
             cores: 4
             experimental: true
-          # API 37.1 ps16k leg
           - api-level: '37.1'
-            suffix: 'canary'
-            target: google_apis_ps16k
-            channel: canary
-            ram-size: 4096M
-            memory: 4096
-            gpu: lavapipe
-            cores: 4
-            experimental: true
-          # Fixed API 37.0 and 37.1 legs
-          - api-level: '37.0'
-            suffix: '37.0-fixed'
+            suffix: 'canary-lavapipe'
             target: google_apis_ps16k
             channel: canary
             ram-size: 4096M
@@ -127,12 +116,12 @@ jobs:
             cores: 4
             experimental: true
           - api-level: '37.1'
-            suffix: '37.1-fixed'
+            suffix: 'canary-auto'
             target: google_apis_ps16k
             channel: canary
             ram-size: 4096M
             memory: 4096
-            gpu: lavapipe
+            gpu: auto
             cores: 4
             experimental: true
 
