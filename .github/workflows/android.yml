@@ -263,13 +263,25 @@ jobs:
         for f in "$HOME"/.android/avd/*.avd/config.ini; do echo "--- $f"; cat "$f"; done
         echo "DEVICE=$(android emulator list | head -n1)" >> "$GITHUB_ENV"
 
+    # 'android emulator start' passes neither -noaudio nor -no-window, so the
+    # runner needs libpulse and an X display.
+    - name: Install emulator host dependencies
+      run: |
+        sudo apt-get update -qq
+        sudo apt-get install -y -qq libpulse0 xvfb
+        Xvfb :99 -screen 0 1280x800x24 &
+        echo "DISPLAY=:99" >> "$GITHUB_ENV"
+
     - name: Start emulator with the CLI
       timeout-minutes: 15
       run: |
         SDK="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-/usr/local/lib/android/sdk}}"
         export PATH="$SDK/platform-tools:$PATH"
         echo "Starting AVD: $DEVICE"
-        android emulator start --cold "$DEVICE" || { echo "===== emulator.log ====="; cat "$HOME/.android/$DEVICE/emulator.log" 2>/dev/null || echo "(no emulator.log)"; exit 1; }
+        # start returns 0 even if the emulator process dies; verify via adb.
+        android emulator start --cold "$DEVICE"
+        for i in $(seq 1 30); do adb get-state >/dev/null 2>&1 && break; sleep 2; done
+        adb get-state >/dev/null 2>&1 || { echo "===== emulator.log ====="; cat "$HOME/.android/$DEVICE/emulator.log" 2>/dev/null || echo "(no emulator.log)"; exit 1; }
         adb devices
         adb shell getprop ro.build.version.sdk
         adb shell getprop sys.boot_completed
