@@ -171,6 +171,11 @@ jobs:
       run: |
         SDK="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-/usr/local/lib/android/sdk}}"
         yes | "$SDK/cmdline-tools/latest/bin/sdkmanager" --install "cmdline-tools;latest" > /dev/null
+        # sdkmanager won't overwrite the preinstalled dir; it installs to latest-2.
+        if [ -d "$SDK/cmdline-tools/latest-2" ]; then
+          rm -rf "$SDK/cmdline-tools/latest"
+          mv "$SDK/cmdline-tools/latest-2" "$SDK/cmdline-tools/latest"
+        fi
         "$SDK/cmdline-tools/latest/bin/avdmanager" list device > /dev/null
 
     # RAM and GPU mode are matrix-tuned per image (heap-size is left at the
