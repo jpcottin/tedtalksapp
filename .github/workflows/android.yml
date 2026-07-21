@@ -245,10 +245,13 @@ jobs:
         android info
         android sdk list | head -40
 
-    - name: Install canary emulator and API 37.0 ps16k image
+    # 'android emulator create' is profile-based and picks its own system image
+    # (observed: android-36 google_apis_playstore x86_64, ignoring pre-installed
+    # images), so only the canary emulator binary is installed here.
+    - name: Install canary emulator
       run: |
-        android sdk install --canary emulator system-images/android-37.0/google_apis_ps16k/x86_64 platform-tools
-        android sdk list | grep -iE "emulator|android-37" || true
+        android sdk install --canary emulator platform-tools
+        android sdk list | grep -iE "^  emulator" || true
 
     - name: Create AVD with the CLI and inspect it
       run: |
@@ -258,22 +261,7 @@ jobs:
         for f in "$HOME"/.android/avd/*.ini; do echo "--- $f"; cat "$f"; done
         echo "===== AVD config.inis ====="
         for f in "$HOME"/.android/avd/*.avd/config.ini; do echo "--- $f"; cat "$f"; done
-        DEVICE="$(android emulator list | head -n1)"
-        # Fall back to avdmanager (updated cmdline-tools) if the CLI did not pick
-        # the intended image.
-        if ! grep -q "android-37.0/google_apis_ps16k/x86_64" "$HOME/.android/avd/"*.avd/config.ini; then
-          echo "CLI picked a different image; recreating with avdmanager"
-          SDK="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-/usr/local/lib/android/sdk}}"
-          yes | "$SDK/cmdline-tools/latest/bin/sdkmanager" --install "cmdline-tools;latest" > /dev/null
-          if [ -d "$SDK/cmdline-tools/latest-2" ]; then
-            rm -rf "$SDK/cmdline-tools/latest"
-            mv "$SDK/cmdline-tools/latest-2" "$SDK/cmdline-tools/latest"
-          fi
-          echo no | "$SDK/cmdline-tools/latest/bin/avdmanager" create avd --force -n test --package 'system-images;android-37.0;google_apis_ps16k;x86_64'
-          cat "$HOME/.android/avd/test.ini"
-          DEVICE=test
-        fi
-        echo "DEVICE=$DEVICE" >> "$GITHUB_ENV"
+        echo "DEVICE=$(android emulator list | head -n1)" >> "$GITHUB_ENV"
 
     - name: Start emulator with the CLI
       timeout-minutes: 15
