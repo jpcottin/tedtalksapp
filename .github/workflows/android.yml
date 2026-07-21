@@ -266,12 +266,18 @@ jobs:
     - name: Start emulator with the CLI
       timeout-minutes: 15
       run: |
+        SDK="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-/usr/local/lib/android/sdk}}"
+        export PATH="$SDK/platform-tools:$PATH"
         echo "Starting AVD: $DEVICE"
-        android emulator start --cold "$DEVICE"
+        android emulator start --cold "$DEVICE" || { echo "===== emulator.log ====="; cat "$HOME/.android/$DEVICE/emulator.log" 2>/dev/null || echo "(no emulator.log)"; exit 1; }
         adb devices
         adb shell getprop ro.build.version.sdk
         adb shell getprop sys.boot_completed
         adb logcat -v time > "${{ github.workspace }}/emulator_logcat.txt" &
+
+    - name: Dump emulator.log on failure
+      if: failure()
+      run: cat "$HOME/.android/$DEVICE/emulator.log" 2>/dev/null || echo "(no emulator.log)"
 
     - name: Run instrumented tests
       run: ./gradlew :app:connectedDebugAndroidTest
