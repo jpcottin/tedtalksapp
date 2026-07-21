@@ -164,6 +164,12 @@ jobs:
         sudo udevadm control --reload-rules
         sudo udevadm trigger --name-match=kvm
 
+    # The runner image ships an outdated avdmanager that writes target=android-0
+    # for minor-versioned packages (android-37.x); the emulator clamps that to
+    # API 3 and skips the Vulkan/GLDirectMem auto-enable.
+    - name: Update SDK cmdline-tools
+      run: yes | sdkmanager --install "cmdline-tools;latest" > /dev/null
+
     # RAM and GPU mode are matrix-tuned per image (heap-size is left at the
     # emulator default). We cold-boot (-no-snapshot), enlarge the userdata
     # partition so the app APK can stage, allow a generous boot timeout, and
@@ -184,6 +190,7 @@ jobs:
         emulator-options: -no-snapshot -no-window -gpu ${{ matrix.gpu }} -noaudio -no-boot-anim -camera-back none -memory ${{ matrix.memory }} -delay-adb -verbose -show-kernel -debug-metrics -metrics-collection ${{ matrix.extra-options || '' }}
         disable-animations: true
         script: |
+          echo "===== AVD root ini ====="; cat "$HOME/.android/avd/test.ini" 2>/dev/null || echo "(test.ini not found)"
           echo "===== AVD config.ini ====="; cat "$HOME/.android/avd/test.avd/config.ini" 2>/dev/null || echo "(config.ini not found)"
           echo "===== emulator advancedFeatures.ini ====="; cat "${ANDROID_SDK_ROOT:-$ANDROID_HOME}/emulator/lib/advancedFeatures.ini" 2>/dev/null || echo "(not found)"
           echo "===== emulator advancedFeaturesCanary.ini ====="; cat "${ANDROID_SDK_ROOT:-$ANDROID_HOME}/emulator/lib/advancedFeaturesCanary.ini" 2>/dev/null || echo "(not found)"
