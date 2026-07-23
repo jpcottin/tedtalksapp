@@ -1,5 +1,26 @@
 # TED Talks Adaptive Showcase
 
+[![Android CI](https://github.com/jpcottin/tedtalksapp/actions/workflows/android.yml/badge.svg?branch=main)](https://github.com/jpcottin/tedtalksapp/actions/workflows/android.yml)
+
+<details>
+<summary><b>CI details</b> — build/lint/screenshot jobs + emulator matrix, API 32 → 37.1, plus an Android CLI leg</summary>
+
+Besides lint, unit tests, Compose screenshot validation, and a debug build, instrumented tests run on GitHub-hosted emulators:
+
+| Legs | Image | Emulator channel | GPU | Gating |
+|---|---|---|---|---|
+| API 32, 33, 34, 35, 36 | `google_apis` x86_64 | stable | auto | ✅ blocking |
+| API 37.0 | `google_apis_ps16k` (16 KB page size) | stable | lavapipe | non-blocking |
+| API 37.0 | `google_apis_ps16k` | canary (`--channel=3`) | lavapipe, auto | non-blocking |
+| API 37.1 | `google_apis_ps16k` | canary | lavapipe, auto | non-blocking |
+| Android CLI experiment | `google_apis_ps16k` 37.0 | canary | emulator default | non-blocking |
+
+The Android CLI leg drives the whole flow with the [`android` CLI](https://d.android.com/tools/agents/android-cli) (`android sdk install --canary`, `android emulator create/start/stop`) instead of `sdkmanager`/`avdmanager` and the emulator-runner action.
+
+All emulator-runner legs use full diagnostics (`-verbose -show-kernel -debug-metrics -metrics-collection`) and a `cmdline-tools;latest` update so `avdmanager` writes a valid `target=android-37.x` (the runner's preinstalled version writes `android-0`, which the emulator clamps to API 3, disabling the Vulkan/GLDirectMem auto-enable the ps16k images need).
+
+</details>
+
 A high-fidelity Android demonstration app centered around the official [TED Talks HD RSS feed](https://feeds.feedburner.com/TedtalksHD). This project serves as a reference implementation for building deeply adaptive UIs that span the entire Android ecosystem—from compact mobile screens and foldables to large-screen spatial environments like Android XR and lean-back experiences on Google TV.
 
 ## 🚀 Key Objectives
