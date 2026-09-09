@@ -62,7 +62,7 @@ import androidx.compose.ui.unit.dp
 import androidx.media3.exoplayer.ExoPlayer
 import coil3.compose.AsyncImage
 import dev.jpcottin.tedtalksapp.data.TalkItem
-import dev.jpcottin.tedtalksapp.theme.MyApplicationTheme
+import dev.jpcottin.tedtalksapp.theme.TedTalksTheme
 
 @Composable
 fun TalkDetailPane(
@@ -440,7 +440,7 @@ fun EmptyDetailPlaceholder(modifier: Modifier = Modifier) {
 @Preview(showBackground = true, widthDp = 800, heightDp = 600, name = "Tablet")
 @Composable
 fun TalkDetailPanePreview() {
-    MyApplicationTheme {
+    TedTalksTheme {
         TalkDetailPane(
             talk = TalkItem("1", "The future of media", "Hamish McKenzie", "Hamish McKenzie discusses the future of media.", "May 21, 2025", "10:58", "", "https://ted.com", "https://example.com/video.mp4"),
             showBackButton = true,
@@ -452,7 +452,7 @@ fun TalkDetailPanePreview() {
 @Preview(showBackground = true, widthDp = 600, name = "No Video")
 @Composable
 fun TalkDetailPaneNoVideoPreview() {
-    MyApplicationTheme {
+    TedTalksTheme {
         TalkDetailPane(
             talk = TalkItem("2", "The catastrophic risks of AI", "Yoshua Bengio", "A very long and detailed description about the catastrophic risks of Artificial Intelligence and what we must do to stop them. ".repeat(10), "May 20, 2025", "14:49", "", "https://ted.com", null),
             showBackButton = false,
@@ -464,7 +464,7 @@ fun TalkDetailPaneNoVideoPreview() {
 @Preview(showBackground = true, widthDp = 400, name = "Missing Meta (Mobile)")
 @Composable
 fun TalkDetailPaneMissingMetaPreview() {
-    MyApplicationTheme {
+    TedTalksTheme {
         TalkDetailPane(
             talk = TalkItem("3", "Mysterious Talk", "Unknown Speaker", "Description is available but other meta is missing.", "", "", "", "https://ted.com", null),
             showBackButton = true,
@@ -477,7 +477,7 @@ fun TalkDetailPaneMissingMetaPreview() {
 @Preview(showBackground = true, uiMode = Configuration.UI_MODE_NIGHT_YES, name = "Dark Mode")
 @Composable
 fun EmptyDetailPlaceholderPreview() {
-    MyApplicationTheme {
+    TedTalksTheme {
         EmptyDetailPlaceholder()
     }
 }

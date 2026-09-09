@@ -262,7 +262,7 @@ private fun FullscreenPlayerDialog(
 @Preview(showBackground = true, widthDp = 400, heightDp = 225, name = "Video Player (Inline)")
 @Composable
 fun VideoPlayerViewPreview() {
-    dev.jpcottin.tedtalksapp.theme.MyApplicationTheme {
+    dev.jpcottin.tedtalksapp.theme.TedTalksTheme {
         VideoPlayerView(exoPlayer = null, modifier = Modifier.fillMaxSize())
     }
 }

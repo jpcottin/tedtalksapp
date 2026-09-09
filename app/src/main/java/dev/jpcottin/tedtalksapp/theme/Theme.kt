@@ -21,7 +21,7 @@ private val TedColorScheme = darkColorScheme(
 )
 
 @Composable
-fun MyApplicationTheme(content: @Composable () -> Unit) {
+fun TedTalksTheme(content: @Composable () -> Unit) {
     MaterialTheme(
         colorScheme = TedColorScheme,
         typography = Typography,
