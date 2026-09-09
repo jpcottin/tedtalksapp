@@ -117,6 +117,45 @@ class RssFeedParserTest {
     }
 
     @Test
+    fun parse_titleThenSpeakerFormat_usesAuthorToSplit() {
+        // Current TED feed format (since 2026): "Title | Speaker".
+        val talks = parseString(
+            """
+            <rss xmlns:itunes="http://www.itunes.com/dtds/podcast-1.0.dtd">
+                <channel>
+                    <item>
+                        <title>This is what the future of media looks like | Hamish McKenzie</title>
+                        <itunes:author>Hamish McKenzie</itunes:author>
+                        <link>https://example.com</link>
+                    </item>
+                </channel>
+            </rss>
+            """.trimIndent()
+        )
+        assertEquals("Hamish McKenzie", talks[0].speaker)
+        assertEquals("This is what the future of media looks like", talks[0].title)
+    }
+
+    @Test
+    fun parse_titleContainingSeparator_keepsWholeTitle() {
+        val talks = parseString(
+            """
+            <rss xmlns:itunes="http://www.itunes.com/dtds/podcast-1.0.dtd">
+                <channel>
+                    <item>
+                        <title>Work | Life | Balance | Jane Doe</title>
+                        <itunes:author>Jane Doe</itunes:author>
+                        <link>https://example.com</link>
+                    </item>
+                </channel>
+            </rss>
+            """.trimIndent()
+        )
+        assertEquals("Jane Doe", talks[0].speaker)
+        assertEquals("Work | Life | Balance", talks[0].title)
+    }
+
+    @Test
     fun parse_noVideoContent_returnsNullVideoUrl() {
         val xml = """
             <rss xmlns:media="http://search.yahoo.com/mrss/" version="2.0">

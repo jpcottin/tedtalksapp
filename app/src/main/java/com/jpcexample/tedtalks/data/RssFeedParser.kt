@@ -70,9 +70,17 @@ class RssFeedParser {
             }
         }
 
-        val parts = title.split(" | ")
-        val cleanSpeaker = author.ifEmpty { parts.getOrElse(0) { "" }.trim() }
-        val cleanTitle = parts.getOrElse(1) { title }.trim()
+        // TED has published both "Speaker | Title" and, since 2026, "Title | Speaker".
+        // When the author is known, drop whichever end matches it; otherwise fall
+        // back to the historical speaker-first order.
+        val parts = title.split(" | ").map { it.trim() }
+        val cleanSpeaker = author.trim().ifEmpty { parts.getOrElse(0) { "" } }
+        val cleanTitle = when {
+            parts.size < 2 -> title.trim()
+            parts.last().equals(cleanSpeaker, ignoreCase = true) -> parts.dropLast(1).joinToString(" | ")
+            parts.first().equals(cleanSpeaker, ignoreCase = true) -> parts.drop(1).joinToString(" | ")
+            else -> parts[1]
+        }
 
         return TalkItem(
             id = guid.ifEmpty { link },
