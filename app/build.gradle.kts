@@ -91,6 +91,16 @@ android {
 
 kotlin {
     jvmToolchain(17)
+    compilerOptions {
+        // Compose Styles API (androidx.compose.foundation.style) and the MediaQuery
+        // API (androidx.compose.ui.mediaQuery / UiMediaScope) are still experimental.
+        freeCompilerArgs.addAll(
+            "-opt-in=androidx.compose.foundation.style.ExperimentalFoundationStyleApi",
+            "-opt-in=androidx.compose.ui.ExperimentalMediaQueryApi",
+            // ComposeUiFlags, used to switch MediaQuery integration on.
+            "-opt-in=androidx.compose.ui.ExperimentalComposeUiApi",
+        )
+    }
 }
 
 dependencies {

@@ -5,6 +5,7 @@ import android.content.Intent
 import android.content.res.Configuration
 import android.net.Uri
 import androidx.compose.foundation.background
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -45,6 +46,7 @@ import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -55,13 +57,13 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.media3.exoplayer.ExoPlayer
 import coil3.compose.AsyncImage
 import com.jpcexample.tedtalks.data.TalkItem
 import com.jpcexample.tedtalks.theme.MyApplicationTheme
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun TalkDetailPane(
     talk: TalkItem,
@@ -70,11 +72,7 @@ fun TalkDetailPane(
     modifier: Modifier = Modifier,
     getExoPlayer: ((String) -> ExoPlayer)? = null,
 ) {
-    val context = LocalContext.current
-    val scrollState = rememberScrollState()
     var isPlayerVisible by rememberSaveable(talk.id) { mutableStateOf(false) }
-    val hasVideo = talk.videoUrl != null
-    val isTV = isTelevision()
 
     // In picture-in-picture the window is tiny: show only the video, full-bleed.
     val isInPip = rememberIsInPipMode()
@@ -88,220 +86,318 @@ fun TalkDetailPane(
         return
     }
 
+    if (isTabletopPosture()) {
+        // Foldable half-opened with the hinge across the middle: the media sits
+        // on the upper half and the readable content and its controls on the
+        // lower half, so the fold never cuts through either.
+        Column(
+            modifier = modifier
+                .fillMaxSize()
+                .background(MaterialTheme.colorScheme.background),
+        ) {
+            HeroArea(
+                talk = talk,
+                isPlayerVisible = isPlayerVisible,
+                onPlay = { isPlayerVisible = true },
+                showBackButton = showBackButton,
+                onBack = onBack,
+                getExoPlayer = getExoPlayer,
+                fillParent = true,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .weight(1f),
+            )
+            DetailContent(
+                talk = talk,
+                isPlayerVisible = isPlayerVisible,
+                onPlay = { isPlayerVisible = true },
+                modifier = Modifier
+                    .weight(1f)
+                    .verticalScroll(rememberScrollState()),
+            )
+        }
+        return
+    }
+
     Column(
         modifier = modifier
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.background)
-            .verticalScroll(scrollState),
+            .verticalScroll(rememberScrollState()),
     ) {
-        // Hero / video area — drawn edge-to-edge under the status bar.
-        // The overlaid M3 TopAppBar applies its own status-bar inset.
-        Box(modifier = Modifier.fillMaxWidth()) {
-            if (isPlayerVisible && talk.videoUrl != null && getExoPlayer != null) {
-                VideoPlayerView(
-                    exoPlayer = getExoPlayer(talk.videoUrl),
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .aspectRatio(16f / 9f),
-                )
-            } else {
-                Box(modifier = Modifier.fillMaxWidth().aspectRatio(16f / 9f)) {
-                    AsyncImage(
-                        model = talk.imageUrl,
-                        contentDescription = null,
-                        contentScale = ContentScale.Crop,
-                        modifier = Modifier.fillMaxSize(),
-                    )
-                    Box(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .background(
-                                Brush.verticalGradient(
-                                    colors = listOf(Color.Transparent, Color.Black.copy(alpha = 0.85f)),
-                                    startY = 120f,
-                                )
-                            ),
-                    )
-                    if (hasVideo) {
-                        Box(
-                            modifier = Modifier.fillMaxSize(),
-                            contentAlignment = Alignment.Center,
-                        ) {
-                            IconButton(
-                                onClick = { isPlayerVisible = true },
-                                modifier = Modifier
-                                    .size(72.dp)
-                                    .dpadFocusHighlight(CircleShape)
-                                    .background(Color.Black.copy(alpha = 0.55f), CircleShape),
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.PlayArrow,
-                                    contentDescription = "Play video",
-                                    tint = Color.White,
-                                    modifier = Modifier.size(44.dp),
-                                )
-                            }
-                        }
-                    }
-                    Column(
-                        modifier = Modifier
-                            .align(Alignment.BottomStart)
-                            .padding(16.dp),
-                    ) {
-                        Text(
-                            text = talk.title,
-                            style = MaterialTheme.typography.headlineSmall,
-                            fontWeight = FontWeight.Bold,
-                            color = Color.White,
-                        )
-                    }
-                }
-            }
+        HeroArea(
+            talk = talk,
+            isPlayerVisible = isPlayerVisible,
+            onPlay = { isPlayerVisible = true },
+            showBackButton = showBackButton,
+            onBack = onBack,
+            getExoPlayer = getExoPlayer,
+            fillParent = false,
+            modifier = Modifier.fillMaxWidth(),
+        )
+        DetailContent(
+            talk = talk,
+            isPlayerVisible = isPlayerVisible,
+            onPlay = { isPlayerVisible = true },
+        )
+    }
+}
 
-            if (showBackButton) {
-                TopAppBar(
-                    title = {},
-                    navigationIcon = {
-                        IconButton(onClick = onBack) {
+/**
+ * Hero image or inline player, drawn edge-to-edge under the status bar. The
+ * overlaid M3 TopAppBar applies its own status-bar inset. With [fillParent]
+ * the media fills whatever box it is given (tabletop upper half); otherwise it
+ * keeps a 16:9 band at the top of the scrolling page.
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun HeroArea(
+    talk: TalkItem,
+    isPlayerVisible: Boolean,
+    onPlay: () -> Unit,
+    showBackButton: Boolean,
+    onBack: () -> Unit,
+    getExoPlayer: ((String) -> ExoPlayer)?,
+    fillParent: Boolean,
+    modifier: Modifier = Modifier,
+) {
+    val hasVideo = talk.videoUrl != null
+    val mediaModifier = if (fillParent) Modifier.fillMaxSize() else Modifier.fillMaxWidth().aspectRatio(16f / 9f)
+
+    // Target size follows the input, not the form factor label: bigger when
+    // viewed from across the room, smaller when a fine pointer is attached.
+    val playButtonSize: Dp = when {
+        isFarViewing() -> 88.dp
+        hasFinePointer() -> 56.dp
+        else -> 72.dp
+    }
+
+    Box(modifier = modifier) {
+        if (isPlayerVisible && talk.videoUrl != null && getExoPlayer != null) {
+            VideoPlayerView(
+                exoPlayer = getExoPlayer(talk.videoUrl),
+                modifier = mediaModifier,
+            )
+        } else {
+            Box(modifier = mediaModifier) {
+                AsyncImage(
+                    model = talk.imageUrl,
+                    contentDescription = null,
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier.fillMaxSize(),
+                )
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(
+                            Brush.verticalGradient(
+                                colors = listOf(Color.Transparent, Color.Black.copy(alpha = 0.85f)),
+                                startY = 120f,
+                            )
+                        ),
+                )
+                if (hasVideo) {
+                    Box(
+                        modifier = Modifier.fillMaxSize(),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        val playInteraction = remember { MutableInteractionSource() }
+                        IconButton(
+                            onClick = onPlay,
+                            interactionSource = playInteraction,
+                            modifier = Modifier
+                                .size(playButtonSize)
+                                // Background first so the ring draws over its rim
+                                // instead of shrinking the disc.
+                                .background(Color.Black.copy(alpha = 0.55f), CircleShape)
+                                .focusRing(playInteraction, CircleShape),
+                        ) {
                             Icon(
-                                imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                                contentDescription = "Back",
+                                imageVector = Icons.Default.PlayArrow,
+                                contentDescription = "Play video",
                                 tint = Color.White,
+                                modifier = Modifier.size(playButtonSize - 28.dp),
                             )
                         }
-                    },
-                    colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent),
-                    modifier = Modifier.align(Alignment.TopStart),
-                )
+                    }
+                }
+                Column(
+                    modifier = Modifier
+                        .align(Alignment.BottomStart)
+                        .padding(16.dp),
+                ) {
+                    Text(
+                        text = talk.title,
+                        style = MaterialTheme.typography.headlineSmall,
+                        fontWeight = FontWeight.Bold,
+                        color = Color.White,
+                    )
+                }
             }
         }
 
-        // Detail content — horizontal/bottom safe-drawing insets keep content
-        // clear of nav bar, gesture bar, and any horizontal display cutouts.
-        Column(
-            modifier = Modifier
-                .windowInsetsPadding(
-                    WindowInsets.safeDrawing.only(
-                        WindowInsetsSides.Horizontal + WindowInsetsSides.Bottom
-                    )
-                )
-                .padding(16.dp),
-        ) {
-            if (isPlayerVisible) {
-                Text(
-                    text = talk.title,
-                    style = MaterialTheme.typography.headlineSmall,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onSurface,
-                )
-                Spacer(modifier = Modifier.height(12.dp))
-            }
-
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(
-                    imageVector = Icons.Default.Person,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.size(18.dp),
-                )
-                Spacer(modifier = Modifier.width(6.dp))
-                Text(
-                    text = talk.speaker,
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.SemiBold,
-                    color = MaterialTheme.colorScheme.primary,
-                )
-            }
-
-            Spacer(modifier = Modifier.height(8.dp))
-
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(16.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                if (talk.duration.isNotBlank()) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
+        if (showBackButton) {
+            TopAppBar(
+                title = {},
+                navigationIcon = {
+                    IconButton(onClick = onBack) {
                         Icon(
-                            imageVector = Icons.Default.PlayArrow,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.size(14.dp),
-                        )
-                        Spacer(modifier = Modifier.width(4.dp))
-                        Text(
-                            text = talk.duration,
-                            style = MaterialTheme.typography.labelMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = "Back",
+                            tint = Color.White,
                         )
                     }
-                }
-                if (talk.pubDate.isNotBlank()) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(
-                            imageVector = Icons.Default.DateRange,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.size(14.dp),
-                        )
-                        Spacer(modifier = Modifier.width(4.dp))
-                        Text(
-                            text = talk.pubDate,
-                            style = MaterialTheme.typography.labelMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                    }
-                }
-            }
+                },
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent),
+                modifier = Modifier.align(Alignment.TopStart),
+            )
+        }
+    }
+}
 
-            Spacer(modifier = Modifier.height(16.dp))
-            HorizontalDivider(color = MaterialTheme.colorScheme.surfaceVariant)
-            Spacer(modifier = Modifier.height(16.dp))
+/**
+ * Speaker, metadata, description and actions. Horizontal/bottom safe-drawing
+ * insets keep the content clear of the nav bar, gesture bar, and any
+ * horizontal display cutouts.
+ */
+@Composable
+private fun DetailContent(
+    talk: TalkItem,
+    isPlayerVisible: Boolean,
+    onPlay: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val context = LocalContext.current
+    val hasVideo = talk.videoUrl != null
+    val isTV = isTelevision()
 
+    Column(
+        modifier = modifier
+            .windowInsetsPadding(
+                WindowInsets.safeDrawing.only(
+                    WindowInsetsSides.Horizontal + WindowInsetsSides.Bottom
+                )
+            )
+            .padding(16.dp),
+    ) {
+        if (isPlayerVisible) {
             Text(
-                text = talk.description,
-                style = MaterialTheme.typography.bodyMedium,
+                text = talk.title,
+                style = MaterialTheme.typography.headlineSmall,
+                fontWeight = FontWeight.Bold,
                 color = MaterialTheme.colorScheme.onSurface,
             )
-
-            Spacer(modifier = Modifier.height(24.dp))
-
-            if (hasVideo && !isPlayerVisible) {
-                Button(
-                    onClick = { isPlayerVisible = true },
-                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .dpadFocusHighlight(ButtonDefaults.shape),
-                ) {
-                    Icon(Icons.Default.PlayArrow, contentDescription = null)
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text("Play video", fontWeight = FontWeight.Bold)
-                }
-                Spacer(modifier = Modifier.height(8.dp))
-            }
-
-            // TV devices have no browser; a web link is a dead end there.
-            if (!isTV) {
-                OutlinedButton(
-                    onClick = {
-                        try {
-                            context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(talk.link)))
-                        } catch (_: ActivityNotFoundException) {
-                            // No browser installed; nothing sensible to do.
-                        }
-                    },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .dpadFocusHighlight(ButtonDefaults.outlinedShape),
-                ) {
-                    Icon(Icons.AutoMirrored.Filled.OpenInNew, contentDescription = null)
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text("Open on TED.com")
-                }
-            }
-
-            Spacer(modifier = Modifier.height(32.dp))
+            Spacer(modifier = Modifier.height(12.dp))
         }
+
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Icon(
+                imageVector = Icons.Default.Person,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.size(18.dp),
+            )
+            Spacer(modifier = Modifier.width(6.dp))
+            Text(
+                text = talk.speaker,
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.SemiBold,
+                color = MaterialTheme.colorScheme.primary,
+            )
+        }
+
+        Spacer(modifier = Modifier.height(8.dp))
+
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(16.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            if (talk.duration.isNotBlank()) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        imageVector = Icons.Default.PlayArrow,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.size(14.dp),
+                    )
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text(
+                        text = talk.duration,
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            }
+            if (talk.pubDate.isNotBlank()) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        imageVector = Icons.Default.DateRange,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.size(14.dp),
+                    )
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text(
+                        text = talk.pubDate,
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            }
+        }
+
+        Spacer(modifier = Modifier.height(16.dp))
+        HorizontalDivider(color = MaterialTheme.colorScheme.surfaceVariant)
+        Spacer(modifier = Modifier.height(16.dp))
+
+        Text(
+            text = talk.description,
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurface,
+        )
+
+        Spacer(modifier = Modifier.height(24.dp))
+
+        if (hasVideo && !isPlayerVisible) {
+            val playInteraction = remember { MutableInteractionSource() }
+            Button(
+                onClick = onPlay,
+                interactionSource = playInteraction,
+                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .focusRing(playInteraction, ButtonDefaults.shape),
+            ) {
+                Icon(Icons.Default.PlayArrow, contentDescription = null)
+                Spacer(modifier = Modifier.width(8.dp))
+                Text("Play video", fontWeight = FontWeight.Bold)
+            }
+            Spacer(modifier = Modifier.height(8.dp))
+        }
+
+        // Leanback devices have no browser; a web link is a dead end there.
+        if (!isTV) {
+            val linkInteraction = remember { MutableInteractionSource() }
+            OutlinedButton(
+                onClick = {
+                    try {
+                        context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(talk.link)))
+                    } catch (_: ActivityNotFoundException) {
+                        // No browser installed; nothing sensible to do.
+                    }
+                },
+                interactionSource = linkInteraction,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .focusRing(linkInteraction, ButtonDefaults.outlinedShape),
+            ) {
+                Icon(Icons.AutoMirrored.Filled.OpenInNew, contentDescription = null)
+                Spacer(modifier = Modifier.width(8.dp))
+                Text("Open on TED.com")
+            }
+        }
+
+        Spacer(modifier = Modifier.height(32.dp))
     }
 }
 

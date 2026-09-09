@@ -3,6 +3,7 @@ package com.jpcexample.tedtalks.ui.main
 import android.content.res.Configuration
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -11,6 +12,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -22,6 +24,8 @@ import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.style.rememberUpdatedStyleState
+import androidx.compose.foundation.style.styleable
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material3.Button
@@ -44,6 +48,7 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.focusRestorer
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -53,6 +58,7 @@ import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
 import com.jpcexample.tedtalks.data.TalkItem
 import com.jpcexample.tedtalks.theme.MyApplicationTheme
+import com.jpcexample.tedtalks.theme.TedTalksStyles
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -63,8 +69,11 @@ fun TalkListPane(
     onRetry: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    // The app bar slides away as the list scrolls down and returns as soon as
+    // the user scrolls up, giving the grid the full height on small windows.
+    val scrollBehavior = TopAppBarDefaults.enterAlwaysScrollBehavior()
     Scaffold(
-        modifier = modifier,
+        modifier = modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
         contentWindowInsets = WindowInsets.safeDrawing,
         topBar = {
             TopAppBar(
@@ -78,7 +87,9 @@ fun TalkListPane(
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = MaterialTheme.colorScheme.background,
+                    scrolledContainerColor = MaterialTheme.colorScheme.background,
                 ),
+                scrollBehavior = scrollBehavior,
             )
         },
     ) { innerPadding ->
@@ -140,13 +151,14 @@ private fun TalkList(
     onTalkClick: (TalkItem) -> Unit,
     contentPadding: PaddingValues,
 ) {
-    val isTV = isTelevision()
+    // Without a pointing device (TV remote, keyboard-only desktop) focus is the
+    // only cursor, so the first item takes it as soon as the list appears.
+    val isDpadOnly = hasNoPointer()
 
     val firstItemFocusRequester = remember { FocusRequester() }
 
-    // On TV, request focus on the first item so D-pad works immediately
-    LaunchedEffect(talks.isNotEmpty()) {
-        if (isTV && talks.isNotEmpty()) {
+    LaunchedEffect(isDpadOnly, talks.isNotEmpty()) {
+        if (isDpadOnly && talks.isNotEmpty()) {
             try { firstItemFocusRequester.requestFocus() } catch (_: Exception) {}
         }
     }
@@ -158,6 +170,9 @@ private fun TalkList(
         contentPadding = contentPadding,
         modifier = Modifier
             .fillMaxSize()
+            // The Scaffold insets are applied as contentPadding above so items
+            // scroll under the bars; consume them so nothing below pads twice.
+            .consumeWindowInsets(contentPadding)
             // When focus comes back from the detail pane / player, return it to
             // the item that was focused before instead of the top of the list.
             .focusRestorer(firstItemFocusRequester),
@@ -181,16 +196,15 @@ private fun TalkListItem(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    // One InteractionSource feeds both the click handling and the Style, so
+    // focus, hover, press and selection are all rendered by TedTalksStyles.
+    val interactionSource = remember { MutableInteractionSource() }
+    val styleState = rememberUpdatedStyleState(interactionSource) { it.isSelected = isSelected }
     Row(
         modifier = modifier
             .fillMaxWidth()
-            .dpadFocusHighlight(RoundedCornerShape(8.dp))
-            .background(
-                if (isSelected) MaterialTheme.colorScheme.surfaceVariant
-                else Color.Transparent
-            )
-            .clickable(onClick = onClick)
-            .padding(horizontal = 16.dp, vertical = 12.dp),
+            .clickable(interactionSource = interactionSource, indication = null, onClick = onClick)
+            .styleable(styleState, TedTalksStyles.focusRing, TedTalksStyles.talkListItem),
         verticalAlignment = Alignment.Top,
     ) {
         Box(
