@@ -48,6 +48,8 @@ A high-fidelity Android demonstration app centered around the official [TED Talk
 - **Cross-Platform Consistency:** High-quality experience on Phone, Tablet, Foldable, TV, and XR.
 - **Adaptive Navigation:** Uses **Navigation 3** with `ListDetailSceneStrategy` so the list/detail layout collapses to a single pane on phones and expands to side-by-side panes on foldables, tablets, and XR. Each pane is its own back-stack entry rather than a managed child of a scaffold.
 - **Edge-to-edge UI:** The app draws under the system bars (Android 15+ default) and applies `WindowInsets.safeDrawing` everywhere a Scaffold doesn't already handle them.
+- **Device traits, not form-factor labels:** Compose's `mediaQuery { }` API decides how the UI behaves from what the device can do: viewing distance drives overscan margins and target sizes, pointer precision drives keyboard/D-pad focus handling, and window posture drives a tabletop layout on foldables.
+- **Styles API:** Focus, hover, press and selection states are declared with the Compose Styles API (`androidx.compose.foundation.style`) instead of being tracked by hand in each composable.
 - **Cross-Device Support:**
     - **Mobile/Foldable:** Responsive layout that adapts to posture changes (e.g., table-top mode).
     - **Android TV:** Optimized D-pad navigation, focus management, and overscan-safe margins.
@@ -59,6 +61,8 @@ A high-fidelity Android demonstration app centered around the official [TED Talk
 
 - **UI:** [Jetpack Compose](https://developer.android.com/compose) (Material 3)
 - **Adaptive Layout:** [androidx.compose.material3.adaptive](https://developer.android.com/develop/ui/compose/layouts/adaptive) + `adaptive-navigation3`
+- **Device traits:** [Compose MediaQuery](https://developer.android.com/develop/ui/compose/layouts/adaptive/mediaquery) (`androidx.compose.ui.mediaQuery`, experimental)
+- **Interaction styling:** [Compose Styles](https://developer.android.com/develop/ui/compose/styles/fundamentals) (`androidx.compose.foundation.style`, experimental)
 - **Navigation:** [Navigation 3](https://developer.android.com/jetpack/androidx/releases/navigation) with `ListDetailSceneStrategy`
 - **Media:** [Media3 ExoPlayer](https://developer.android.com/guide/topics/media/exoplayer)
 - **Image Loading:** [Coil 3](https://coil-kt.github.io/coil/) (Multiplatform)
@@ -76,10 +80,34 @@ A high-fidelity Android demonstration app centered around the official [TED Talk
 
 `ListDetailSceneStrategy` observes the back stack and the window's adaptive info to render the appropriate scene (single pane vs. side-by-side). The detail pane hides its back button when `maxHorizontalPartitions > 1` because the list pane is already visible.
 
+### Device traits (MediaQuery)
+
+`DeviceTraits.kt` wraps Compose's experimental `mediaQuery { }` API in a handful of named questions the UI asks instead of checking `uiMode` or screen size:
+
+| Trait | Query | Used for |
+|---|---|---|
+| `isFarViewing()` | `viewingDistance == Far` | 48dp / 27dp overscan-safe padding around the whole UI; an 88dp play target on the hero. |
+| `hasNoPointer()` | `pointerPrecision == None` | Focus is the only cursor, so the first list item and the video player take focus as soon as they appear (TV remote, keyboard-only desktop, XR without hand tracking). |
+| `hasFinePointer()` | `pointerPrecision == Fine` | A mouse or trackpad is attached: the hero play target shrinks to 56dp. |
+| `isTabletopPosture()` | `windowPosture == Tabletop` | A half-opened foldable with a horizontal hinge: the detail pane puts the video or hero image on the upper half and the scrolling text and controls on the lower half, so the fold never cuts through either. |
+
+`isTelevision()` (leanback `uiMode`) is kept only for a platform fact that isn't an adaptive trait: leanback devices have no browser, so the "Open on TED.com" button is hidden there.
+
+The API is gated behind `ComposeUiFlags.isMediaQueryIntegrationEnabled`. Compose reads the flag once per composition root, so `TedTalksApplication.onCreate` turns it on before any Activity composes. When the flag is off (Android Studio previews render without the Application class) each trait falls back to the `uiMode` heuristic the app used before, so previews still render. `LogDeviceTraits()` prints the resolved values to logcat under the `DeviceTraits` tag, which is handy when reading the CI emulator logs.
+
+### Styles
+
+`theme/ComponentStyles.kt` declares the app's interaction styling with the Compose Styles API:
+
+- `TedTalksStyles.focusRing` — a 3dp border that is transparent at rest, animates to the brand red when focused, and shows at half opacity on mouse hover.
+- `TedTalksStyles.talkListItem` — shape, content padding, and hover / press / selected backgrounds for a row of the talk list.
+
+The list row applies both with `Modifier.styleable(styleState, focusRing, talkListItem)`, where the `StyleState` comes from `rememberUpdatedStyleState(interactionSource) { it.isSelected = isSelected }` and the same `InteractionSource` is handed to `clickable`. Material buttons don't take a `Style` parameter, so `Modifier.focusRing(interactionSource, shape)` in `FocusSupport.kt` attaches the ring through `Modifier.styleable` using the `InteractionSource` passed to the button. Both APIs need `compileSdk 37` and Compose 1.12, and are opted in project-wide in `app/build.gradle.kts`.
+
 ### Edge-to-edge
 
 - `MainActivity.onCreate` calls `enableEdgeToEdge(SystemBarStyle.dark(...), SystemBarStyle.dark(...))` because the app forces a dark Compose theme regardless of the system setting.
-- `TalkListPane` uses a Material 3 `Scaffold` with `contentWindowInsets = WindowInsets.safeDrawing` and forwards `innerPadding` to the `LazyVerticalGrid.contentPadding`.
+- `TalkListPane` uses a Material 3 `Scaffold` with `contentWindowInsets = WindowInsets.safeDrawing`, forwards `innerPadding` to the `LazyVerticalGrid.contentPadding`, and consumes it with `consumeWindowInsets(innerPadding)` so nothing below pads twice.
 - `TalkDetailPane`'s hero is intentionally edge-to-edge; the M3 `TopAppBar` overlay applies its own status-bar inset and the text body underneath applies `WindowInsets.safeDrawing.only(Horizontal + Bottom)`.
 - The fullscreen video `Dialog` uses `decorFitsSystemWindows = false` and hides the system bars while playing.
 
@@ -91,7 +119,7 @@ A high-fidelity Android demonstration app centered around the official [TED Talk
 
 ### Adaptive list
 
-`TalkListPane` uses `LazyVerticalGrid(columns = GridCells.Adaptive(360.dp))` so it stays single-column on phones (and on the narrow list pane of a two-pane layout) and expands to multiple columns when given more horizontal space.
+`TalkListPane` uses `LazyVerticalGrid(columns = GridCells.Adaptive(360.dp))` so it stays single-column on phones (and on the narrow list pane of a two-pane layout) and expands to multiple columns when given more horizontal space. The app bar uses `TopAppBarDefaults.enterAlwaysScrollBehavior()`: it slides away as the grid scrolls down and returns as soon as the user scrolls up, giving the grid the full height on small windows.
 
 ### XR / TV specifics
 
@@ -99,12 +127,12 @@ The XR + TV workarounds remain in this branch:
 
 - **Surface rendering (black video area)** — `SurfaceView` uses hardware hole-punching that conflicts with the XR spatial compositor, producing a black rectangle. A custom `view_player.xml` layout (`app:surface_type="texture_view"`) composites the video correctly into the XR panel.
 - **SSL trust anchor (Sectigo Root R46)** — the XR emulator ships without Sectigo Public Server Authentication Root R46, the root CA that signs TED's video CDN (`download.ted.com`). `network_security_config.xml` bundles this certificate scoped to `ted.com` and `feedburner.com`; SSL validation is fully preserved for all other domains.
-- **TV overscan margins** — `Navigation.kt` adds 48dp / 27dp safe-area padding when `UI_MODE_TYPE_TELEVISION` is active.
+- **Overscan margins** — `Navigation.kt` adds 48dp / 27dp safe-area padding when the MediaQuery viewing distance is `Far` (TV).
 
 ### D-pad navigation & focus
 
-- **Visible focus** — Material's default focus indication (a faint state layer) is invisible on image-heavy lean-back layouts, so `FocusSupport.kt` provides `Modifier.dpadFocusHighlight(shape)`, a 3dp primary-color border applied to list items, the hero play overlay, and the detail buttons.
-- **Player key dispatch** — per the Media3 TV recipe, the inline and fullscreen `PlayerView` wrappers forward Compose key events with `onKeyEvent { playerView.dispatchKeyEvent(it.nativeKeyEvent) }`, and on TV the player requests focus when playback starts. DPAD-CENTER shows the controller and toggles play/pause; BACK falls through once the controller is hidden so navigation still pops.
+- **Visible focus** — Material's default focus indication (a faint state layer) is invisible on image-heavy lean-back layouts, so `TedTalksStyles.focusRing` (a Compose `Style`) draws a 3dp brand-red border on the focused list item, hero play overlay, and detail buttons; see the Styles section above.
+- **Player key dispatch** — per the Media3 TV recipe, the inline and fullscreen `PlayerView` wrappers forward Compose key events with `onKeyEvent { playerView.dispatchKeyEvent(it.nativeKeyEvent) }`, and when no pointing device is present (`hasNoPointer()`) the player requests focus when playback starts. DPAD-CENTER shows the controller and toggles play/pause; BACK falls through once the controller is hidden so navigation still pops.
 - **Focus restoration** — the talk grid uses `Modifier.focusRestorer(...)`, so backing out of a detail pane returns focus to the item that opened it rather than the top of the list.
 - **Two-pane back fix** — in a two-pane scene `ListDetailSceneStrategy` reports no previous entries, which disables `NavDisplay`'s built-in back handling; BACK would close the activity instead of dismissing the detail pane (this affects TV, tablets, foldables, and XR). `MainNavigation` adds a fallback `BackHandler` that pops the back stack; in single-pane scenes `NavDisplay`'s own handler still wins, keeping the predictive-back animation.
 - **No browser on TV** — the "Open on TED.com" button is hidden in leanback mode (web links are a dead end on TV) and guarded with `ActivityNotFoundException` elsewhere.
@@ -121,7 +149,7 @@ The repository is wired for constructor injection, so tests can pass a fake with
 |------|-----------|---------|----------------|
 | Unit tests | `src/test/` | `./gradlew :app:testDebugUnitTest` | `RssFeedParser` parsing edge cases, `DefaultTedTalksRepository` HTTP behavior via MockWebServer, and `TedTalksViewModel` state machine (loading / success / error / retry / selection) and playback-position bookkeeping (resume / restart-after-finish) against a mocked `ExoPlayer`. |
 | Compose UI tests | `src/androidTest/` | `./gradlew :app:connectedDebugAndroidTest` | `TalkListPane`, `TalkDetailPane`, and the full `MainNavigation` graph (including a back-from-detail regression guard for the two-pane back fix) using `FakeTedTalksRepository`. Pane assertions scroll to off-screen nodes so they pass on TV/wide viewports too. |
-| Screenshot tests | `src/screenshotTest/` | `./gradlew :app:updateDebugScreenshotTest` (record) / `./gradlew :app:validateDebugScreenshotTest` (verify) | Curated `@PreviewTest` previews of `TalkListPane` (loading/error/success), `TalkDetailPane`, and `EmptyDetailPlaceholder` across phone/foldable/tablet form factors. Uses the experimental [Compose Preview Screenshot Testing tool](https://developer.android.com/studio/preview/compose-screenshot-testing). |
+| Screenshot tests | `src/screenshotTest/` | `./gradlew :app:updateDebugScreenshotTest` (record) / `./gradlew :app:validateDebugScreenshotTest` (verify) | Curated `@PreviewTest` previews of `TalkListPane` (loading/error/success), `TalkDetailPane` (including a tabletop-posture layout, produced by overriding `LocalUiMediaScope` the way the MediaQuery docs recommend for previews), and `EmptyDetailPlaceholder` across phone/foldable/tablet form factors. Uses the experimental [Compose Preview Screenshot Testing tool](https://developer.android.com/studio/preview/compose-screenshot-testing). |
 
 Compose `@Preview`s in `src/main/` (e.g. `TalkListPanePreview`) remain for design-time use in Android Studio and are tagged with a `FormFactorPreviews` multi-preview annotation.
 
@@ -163,6 +191,10 @@ Pushes to `main` and PRs targeting it run [`.github/workflows/android.yml`](.git
 | Phone | Foldable (Inner) | Android XR | Google TV |
 |-------|------------------|------------|-----------|
 | ![Phone](docs/screenshot_phone.png) | ![Foldable](docs/screenshot_foldable.png) | ![XR](docs/screenshot_xr.png) | ![TV](docs/screenshot_tv.png) |
+
+| Foldable, tabletop posture (`mediaQuery { windowPosture == Tabletop }`) |
+|---|
+| ![Tabletop](docs/screenshot_tabletop.png) |
 
 ## 🛠 Getting Started
 

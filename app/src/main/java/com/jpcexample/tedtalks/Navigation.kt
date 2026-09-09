@@ -20,8 +20,9 @@ import androidx.navigation3.runtime.entryProvider
 import androidx.navigation3.runtime.rememberNavBackStack
 import androidx.navigation3.ui.NavDisplay
 import com.jpcexample.tedtalks.ui.main.EmptyDetailPlaceholder
+import com.jpcexample.tedtalks.ui.main.LogDeviceTraits
 import com.jpcexample.tedtalks.ui.main.TalkDetailPane
-import com.jpcexample.tedtalks.ui.main.isTelevision
+import com.jpcexample.tedtalks.ui.main.isFarViewing
 import com.jpcexample.tedtalks.ui.main.TalkListPane
 import com.jpcexample.tedtalks.ui.main.TedTalksUiState
 import com.jpcexample.tedtalks.ui.main.TedTalksViewModel
@@ -31,7 +32,9 @@ import com.jpcexample.tedtalks.ui.main.TedTalksViewModel
 fun MainNavigation(viewModel: TedTalksViewModel) {
     val backStack = rememberNavBackStack(TalksList)
     val context = LocalContext.current
-    val isTV = isTelevision()
+    LogDeviceTraits()
+    // Viewed from a distance (TV): keep content inside the overscan-safe area.
+    val isFarViewing = isFarViewing()
 
     val windowAdaptiveInfo = currentWindowAdaptiveInfoV2()
     val directive = remember(windowAdaptiveInfo) {
@@ -60,7 +63,7 @@ fun MainNavigation(viewModel: TedTalksViewModel) {
             backStack.removeLastOrNull()
             viewModel.clearSelection()
         },
-        sceneStrategy = listDetailStrategy,
+        sceneStrategies = listOf(listDetailStrategy),
         entryProvider = entryProvider {
             entry<TalksList>(
                 metadata = ListDetailSceneStrategy.listPane(
@@ -99,9 +102,9 @@ fun MainNavigation(viewModel: TedTalksViewModel) {
         },
         modifier = Modifier
             .fillMaxSize()
-            // TV overscan safe area: 48dp horizontal, 27dp vertical
+            // Overscan safe area: 48dp horizontal, 27dp vertical
             .then(
-                if (isTV) Modifier.padding(horizontal = 48.dp, vertical = 27.dp)
+                if (isFarViewing) Modifier.padding(horizontal = 48.dp, vertical = 27.dp)
                 else Modifier
             ),
     )

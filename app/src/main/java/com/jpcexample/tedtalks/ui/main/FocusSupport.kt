@@ -1,39 +1,28 @@
 package com.jpcexample.tedtalks.ui.main
 
-import android.content.res.Configuration
-import androidx.compose.foundation.border
-import androidx.compose.material3.MaterialTheme
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.style.Style
+import androidx.compose.foundation.style.rememberUpdatedStyleState
+import androidx.compose.foundation.style.styleable
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.focus.onFocusChanged
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
-import androidx.compose.ui.platform.LocalConfiguration
-import androidx.compose.ui.unit.dp
-
-/** True when running in a leanback (TV) UI mode. */
-@Composable
-fun isTelevision(): Boolean =
-    LocalConfiguration.current.uiMode and Configuration.UI_MODE_TYPE_MASK ==
-        Configuration.UI_MODE_TYPE_TELEVISION
+import com.jpcexample.tedtalks.theme.TedTalksStyles
 
 /**
- * Draws a highly visible border while the element is focused, so D-pad users
- * can always tell where focus is. Material's default focus indication (a faint
- * state layer) is invisible on image-heavy TV layouts.
+ * Draws a highly visible ring while the element is focused, so D-pad and
+ * keyboard users can always tell where focus is. Material's default focus
+ * indication (a faint state layer) is invisible on image-heavy TV layouts.
+ *
+ * The ring is a Compose [Style] (see [TedTalksStyles.focusRing]). Material
+ * components don't take a Style parameter, so it is attached with
+ * `Modifier.styleable`, driven by the same [MutableInteractionSource] the
+ * component reports its focus and hover interactions to.
  */
 @Composable
-fun Modifier.dpadFocusHighlight(shape: Shape): Modifier {
-    var isFocused by remember { mutableStateOf(false) }
-    return this
-        .onFocusChanged { isFocused = it.isFocused }
-        .border(
-            width = if (isFocused) 3.dp else 0.dp,
-            color = if (isFocused) MaterialTheme.colorScheme.primary else Color.Transparent,
-            shape = shape,
-        )
+fun Modifier.focusRing(interactionSource: MutableInteractionSource, shape: Shape): Modifier {
+    val styleState = rememberUpdatedStyleState(interactionSource) {}
+    val shapeStyle = remember(shape) { Style { shape(shape) } }
+    return styleable(styleState, TedTalksStyles.focusRing, shapeStyle)
 }

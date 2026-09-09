@@ -78,14 +78,15 @@ fun VideoPlayerView(
     var isFullscreen by remember { mutableStateOf(false) }
 
     val focusRequester = remember { FocusRequester() }
-    val isTV = isTelevision()
+    val isDpadOnly = hasNoPointer()
     var playerViewRef by remember { mutableStateOf<PlayerView?>(null) }
 
-    // On TV the player must own focus so the D-pad drives the playback controls
-    // (show controller, pause/seek). Key events are forwarded to the PlayerView
-    // below; BACK falls through when the controller is hidden, popping navigation.
-    LaunchedEffect(isTV, exoPlayer, isFullscreen) {
-        if (isTV && exoPlayer != null && !isFullscreen) {
+    // Without a pointing device (TV remote, keyboard only) the player must own
+    // focus so the D-pad drives the playback controls (show controller,
+    // pause/seek). Key events are forwarded to the PlayerView below; BACK falls
+    // through when the controller is hidden, popping navigation.
+    LaunchedEffect(isDpadOnly, exoPlayer, isFullscreen) {
+        if (isDpadOnly && exoPlayer != null && !isFullscreen) {
             try { focusRequester.requestFocus() } catch (_: Exception) {}
         }
     }
@@ -218,10 +219,10 @@ private fun FullscreenPlayerDialog(
 
         val fullscreenFocusRequester = remember { FocusRequester() }
         var fullscreenPlayerView by remember { mutableStateOf<PlayerView?>(null) }
-        val isTV = isTelevision()
+        val isDpadOnly = hasNoPointer()
 
-        LaunchedEffect(isTV) {
-            if (isTV) {
+        LaunchedEffect(isDpadOnly) {
+            if (isDpadOnly) {
                 try { fullscreenFocusRequester.requestFocus() } catch (_: Exception) {}
             }
         }
