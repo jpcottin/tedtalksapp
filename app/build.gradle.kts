@@ -22,10 +22,10 @@ fun signingValue(propKey: String, envKey: String): String? =
     keystoreProperties.getProperty(propKey) ?: System.getenv(envKey)
 
 android {
-    namespace = "com.jpcexample.tedtalks"
+    namespace = "dev.jpcottin.tedtalksapp"
     compileSdk = 37
     defaultConfig {
-        applicationId = "com.jpcexample.tedtalks"
+        applicationId = "dev.jpcottin.tedtalksapp"
         minSdk = 24
         targetSdk = 36
         versionCode = 1

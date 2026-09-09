@@ -475,8 +475,8 @@ jobs:
           SDK="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-/usr/local/lib/android/sdk}}"
           export ANDROID_HOME="$SDK" ANDROID_SDK_ROOT="$SDK"
           export PATH="$SDK/platform-tools:$PATH"
-          PKG=com.jpcexample.tedtalks
-          ACT=com.jpcexample.tedtalks.MainActivity
+          PKG=dev.jpcottin.tedtalksapp
+          ACT=dev.jpcottin.tedtalksapp.MainActivity
           WSDIR="${{ github.workspace }}"
           mkdir -p "$WSDIR/screenshots"
 
@@ -781,8 +781,8 @@ jobs:
         run: |
           SDK="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-/usr/local/lib/android/sdk}}"
           export PATH="$SDK/platform-tools:$PATH"
-          PKG=com.jpcexample.tedtalks
-          ACT=com.jpcexample.tedtalks.MainActivity
+          PKG=dev.jpcottin.tedtalksapp
+          ACT=dev.jpcottin.tedtalksapp.MainActivity
           APK=app/build/outputs/apk/debug/app-debug.apk
           WS="${{ github.workspace }}"
           mkdir -p "$WS/screenshots"
