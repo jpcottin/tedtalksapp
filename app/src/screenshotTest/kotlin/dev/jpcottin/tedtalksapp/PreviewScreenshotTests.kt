@@ -12,7 +12,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.android.tools.screenshot.PreviewTest
 import dev.jpcottin.tedtalksapp.data.TalkItem
-import dev.jpcottin.tedtalksapp.theme.MyApplicationTheme
+import dev.jpcottin.tedtalksapp.theme.TedTalksTheme
 import dev.jpcottin.tedtalksapp.ui.main.EmptyDetailPlaceholder
 import dev.jpcottin.tedtalksapp.ui.main.TalkDetailPane
 import dev.jpcottin.tedtalksapp.ui.main.TalkListPane
@@ -67,7 +67,7 @@ private val sampleTalk = TalkItem(
 @Preview(name = "Tablet", device = Devices.TABLET, showBackground = true)
 @Composable
 fun TalkListPaneSuccessScreenshot() {
-    MyApplicationTheme {
+    TedTalksTheme {
         TalkListPane(
             uiState = TedTalksUiState.Success(sampleTalks),
             selectedTalkId = "1",
@@ -81,7 +81,7 @@ fun TalkListPaneSuccessScreenshot() {
 @Preview(name = "Loading", widthDp = 400, heightDp = 600, showBackground = true)
 @Composable
 fun TalkListPaneLoadingScreenshot() {
-    MyApplicationTheme {
+    TedTalksTheme {
         TalkListPane(
             uiState = TedTalksUiState.Loading,
             selectedTalkId = null,
@@ -95,7 +95,7 @@ fun TalkListPaneLoadingScreenshot() {
 @Preview(name = "Error", widthDp = 400, heightDp = 600, showBackground = true)
 @Composable
 fun TalkListPaneErrorScreenshot() {
-    MyApplicationTheme {
+    TedTalksTheme {
         TalkListPane(
             uiState = TedTalksUiState.Error("Network timeout."),
             selectedTalkId = null,
@@ -111,7 +111,7 @@ fun TalkListPaneErrorScreenshot() {
 @Preview(name = "Detail Tablet", widthDp = 800, heightDp = 600, showBackground = true)
 @Composable
 fun TalkDetailPaneScreenshot() {
-    MyApplicationTheme {
+    TedTalksTheme {
         TalkDetailPane(
             talk = sampleTalk,
             showBackButton = true,
@@ -128,7 +128,7 @@ fun TalkDetailPaneTabletopScreenshot() {
     // Same override technique the MediaQuery docs recommend for previews: swap
     // the scope so the detail pane lays out for a horizontal hinge.
     CompositionLocalProvider(LocalUiMediaScope provides TabletopMediaScope(841.dp, 673.dp)) {
-        MyApplicationTheme {
+        TedTalksTheme {
             TalkDetailPane(
                 talk = sampleTalk,
                 showBackButton = false,
@@ -142,7 +142,7 @@ fun TalkDetailPaneTabletopScreenshot() {
 @Preview(name = "Empty Detail", widthDp = 400, heightDp = 600, showBackground = true)
 @Composable
 fun EmptyDetailPlaceholderScreenshot() {
-    MyApplicationTheme {
+    TedTalksTheme {
         EmptyDetailPlaceholder()
     }
 }

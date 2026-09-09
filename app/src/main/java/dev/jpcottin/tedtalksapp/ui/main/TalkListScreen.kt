@@ -57,7 +57,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
 import dev.jpcottin.tedtalksapp.data.TalkItem
-import dev.jpcottin.tedtalksapp.theme.MyApplicationTheme
+import dev.jpcottin.tedtalksapp.theme.TedTalksTheme
 import dev.jpcottin.tedtalksapp.theme.TedTalksStyles
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -294,7 +294,7 @@ annotation class FormFactorPreviews
 @FormFactorPreviews
 @Composable
 fun TalkListPanePreview() {
-    MyApplicationTheme {
+    TedTalksTheme {
         TalkListPane(
             uiState = TedTalksUiState.Success(sampleTalks),
             selectedTalkId = "1",
@@ -308,7 +308,7 @@ fun TalkListPanePreview() {
 @Preview(showBackground = true, uiMode = Configuration.UI_MODE_NIGHT_YES, name = "Dark Mode")
 @Composable
 fun TalkListItemPreview() {
-    MyApplicationTheme {
+    TedTalksTheme {
         TalkListItem(
             talk = sampleTalks[0],
             isSelected = false,
@@ -320,7 +320,7 @@ fun TalkListItemPreview() {
 @Preview(showBackground = true, widthDp = 320, heightDp = 480, name = "Loading")
 @Composable
 fun TalkListPaneLoadingPreview() {
-    MyApplicationTheme {
+    TedTalksTheme {
         TalkListPane(
             uiState = TedTalksUiState.Loading,
             selectedTalkId = null,
@@ -333,7 +333,7 @@ fun TalkListPaneLoadingPreview() {
 @Preview(showBackground = true, widthDp = 320, heightDp = 480, name = "Error")
 @Composable
 fun TalkListPaneErrorPreview() {
-    MyApplicationTheme {
+    TedTalksTheme {
         TalkListPane(
             uiState = TedTalksUiState.Error("Network timeout. Please check your connection."),
             selectedTalkId = null,

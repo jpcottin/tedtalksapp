@@ -18761,7 +18761,7 @@ Ldev/jpcottin/tedtalksapp/theme/TedTalksStyles$$ExternalSyntheticLambda7;
 HSPLdev/jpcottin/tedtalksapp/theme/TedTalksStyles$$ExternalSyntheticLambda7;-><init>(Landroidx/compose/foundation/style/StyleScope;)V
 Ldev/jpcottin/tedtalksapp/theme/ThemeKt;
 HSPLdev/jpcottin/tedtalksapp/theme/ThemeKt;-><clinit>()V
-HSPLdev/jpcottin/tedtalksapp/theme/ThemeKt;->MyApplicationTheme(Lkotlin/jvm/functions/Function2;Landroidx/compose/runtime/Composer;I)V
+HSPLdev/jpcottin/tedtalksapp/theme/ThemeKt;->TedTalksTheme(Lkotlin/jvm/functions/Function2;Landroidx/compose/runtime/Composer;I)V
 Ldev/jpcottin/tedtalksapp/theme/TypeKt;
 HSPLdev/jpcottin/tedtalksapp/theme/TypeKt;-><clinit>()V
 HSPLdev/jpcottin/tedtalksapp/theme/TypeKt;->getTypography()Landroidx/compose/material3/Typography;

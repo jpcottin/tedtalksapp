@@ -14,7 +14,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.ui.Modifier
 import androidx.lifecycle.viewmodel.compose.viewModel
-import dev.jpcottin.tedtalksapp.theme.MyApplicationTheme
+import dev.jpcottin.tedtalksapp.theme.TedTalksTheme
 import dev.jpcottin.tedtalksapp.ui.main.TedTalksViewModel
 
 @SuppressLint("Instantiatable")
@@ -31,7 +31,7 @@ class MainActivity : ComponentActivity() {
 
     setContent {
       val viewModel: TedTalksViewModel = viewModel()
-      MyApplicationTheme {
+      TedTalksTheme {
         Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
           MainNavigation(viewModel)
         }

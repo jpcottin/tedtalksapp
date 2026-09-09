@@ -7,7 +7,7 @@ import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import dev.jpcottin.tedtalksapp.data.TalkItem
 import dev.jpcottin.tedtalksapp.data.TedTalksRepository
-import dev.jpcottin.tedtalksapp.theme.MyApplicationTheme
+import dev.jpcottin.tedtalksapp.theme.TedTalksTheme
 import androidx.test.espresso.Espresso
 import dev.jpcottin.tedtalksapp.ui.main.TedTalksViewModel
 import org.junit.Assert.assertNull
@@ -35,7 +35,7 @@ class MainNavigationTest {
     fun navGraph_rendersListWithoutCrashing() {
         val viewModel = TedTalksViewModel(StaticRepo(talks))
         composeTestRule.setContent {
-            MyApplicationTheme {
+            TedTalksTheme {
                 MainNavigation(viewModel = viewModel)
             }
         }
@@ -48,7 +48,7 @@ class MainNavigationTest {
     fun navGraph_tappingListItemNavigatesToDetail() {
         val viewModel = TedTalksViewModel(StaticRepo(talks))
         composeTestRule.setContent {
-            MyApplicationTheme {
+            TedTalksTheme {
                 MainNavigation(viewModel = viewModel)
             }
         }
@@ -64,7 +64,7 @@ class MainNavigationTest {
     fun navGraph_backFromDetailReturnsToList() {
         val viewModel = TedTalksViewModel(StaticRepo(talks))
         composeTestRule.setContent {
-            MyApplicationTheme {
+            TedTalksTheme {
                 MainNavigation(viewModel = viewModel)
             }
         }
