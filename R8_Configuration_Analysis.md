@@ -23,14 +23,14 @@ The app initially carried three custom rules for the `@Serializable` Navigation 
 nav keys (`TalksList`, `TalkDetail`):
 
 ```
--keep @kotlinx.serialization.Serializable class com.jpcexample.tedtalks.** { *; }
--keepclassmembers class com.jpcexample.tedtalks.** { *** Companion; }
--keepclasseswithmembers class com.jpcexample.tedtalks.** { kotlinx.serialization.KSerializer serializer(...); }
+-keep @kotlinx.serialization.Serializable class dev.jpcottin.tedtalksapp.** { *; }
+-keepclassmembers class dev.jpcottin.tedtalksapp.** { *** Companion; }
+-keepclasseswithmembers class dev.jpcottin.tedtalksapp.** { kotlinx.serialization.KSerializer serializer(...); }
 ```
 
 **Action taken: all three removed.**
 
-- They were **package-wide wildcards** (`com.jpcexample.tedtalks.**`) keeping all
+- They were **package-wide wildcards** (`dev.jpcottin.tedtalksapp.**`) keeping all
   members and blocking obfuscation — the broadest, least optimization-friendly
   shape of rule.
 - They **duplicated library consumer rules.** `kotlinx-serialization-core:1.7.3`

@@ -4,7 +4,7 @@ plugins {
 }
 
 android {
-    namespace = "com.jpcexample.tedtalks.baselineprofile"
+    namespace = "dev.jpcottin.tedtalksapp.baselineprofile"
     compileSdk = 37
 
     defaultConfig {

@@ -54,8 +54,8 @@ EMULATOR="$SDK/emulators/latest/emulator"
 API=37.0
 TARGET=google_apis_ps16k
 ABI=x86_64
-PKG=com.jpcexample.tedtalks
-ACT=com.jpcexample.tedtalks.MainActivity
+PKG=dev.jpcottin.tedtalksapp
+ACT=dev.jpcottin.tedtalksapp.MainActivity
 REPO="$(cd "$(dirname "$0")/.." && pwd)"
 APK="$REPO/app/build/outputs/apk/debug/app-debug.apk"
 
