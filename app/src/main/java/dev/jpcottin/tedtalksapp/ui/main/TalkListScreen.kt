@@ -35,6 +35,11 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
+import androidx.compose.material3.pulltorefresh.PullToRefreshDefaults
+import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
@@ -68,13 +73,28 @@ fun TalkListPane(
     onTalkClick: (TalkItem) -> Unit,
     onRetry: () -> Unit,
     modifier: Modifier = Modifier,
+    isRefreshing: Boolean = false,
+    onRefresh: () -> Unit = onRetry,
+    refreshError: String? = null,
+    onRefreshErrorShown: () -> Unit = {},
 ) {
+    // A reload that fails behind an existing list is only worth a snackbar:
+    // the stale talks stay on screen and are still usable.
+    val snackbarHostState = remember { SnackbarHostState() }
+    LaunchedEffect(refreshError) {
+        if (refreshError != null) {
+            snackbarHostState.showSnackbar("Couldn't refresh: $refreshError")
+            onRefreshErrorShown()
+        }
+    }
+
     // The app bar slides away as the list scrolls down and returns as soon as
     // the user scrolls up, giving the grid the full height on small windows.
     val scrollBehavior = TopAppBarDefaults.enterAlwaysScrollBehavior()
     Scaffold(
         modifier = modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
         contentWindowInsets = WindowInsets.safeDrawing,
+        snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             TopAppBar(
                 title = {
@@ -105,6 +125,8 @@ fun TalkListPane(
                 selectedTalkId = selectedTalkId,
                 onTalkClick = onTalkClick,
                 contentPadding = innerPadding,
+                isRefreshing = isRefreshing,
+                onRefresh = onRefresh,
             )
         }
     }
@@ -144,12 +166,15 @@ private fun ErrorPane(message: String, onRetry: () -> Unit, modifier: Modifier =
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun TalkList(
     talks: List<TalkItem>,
     selectedTalkId: String?,
     onTalkClick: (TalkItem) -> Unit,
     contentPadding: PaddingValues,
+    isRefreshing: Boolean,
+    onRefresh: () -> Unit,
 ) {
     // Without a pointing device (TV remote, keyboard-only desktop) focus is the
     // only cursor, so the first item takes it as soon as the list appears.
@@ -163,28 +188,47 @@ private fun TalkList(
         }
     }
 
-    // Adaptive cells: a single column on a phone-width list pane, multiple columns
-    // when the list pane is wider (e.g. tablet primary pane, desktop, TV).
-    LazyVerticalGrid(
-        columns = GridCells.Adaptive(360.dp),
-        contentPadding = contentPadding,
-        modifier = Modifier
-            .fillMaxSize()
-            // The Scaffold insets are applied as contentPadding above so items
-            // scroll under the bars; consume them so nothing below pads twice.
-            .consumeWindowInsets(contentPadding)
-            // When focus comes back from the detail pane / player, return it to
-            // the item that was focused before instead of the top of the list.
-            .focusRestorer(firstItemFocusRequester),
-    ) {
-        items(talks, key = { it.id }) { talk ->
-            val isFirst = talk === talks.first()
-            TalkListItem(
-                talk = talk,
-                isSelected = talk.id == selectedTalkId,
-                onClick = { onTalkClick(talk) },
-                modifier = if (isFirst) Modifier.focusRequester(firstItemFocusRequester) else Modifier,
+    // The grid scrolls under the app bar, so the pull indicator is pushed down
+    // by the same top inset or it would spin behind the bar.
+    val pullState = rememberPullToRefreshState()
+    PullToRefreshBox(
+        isRefreshing = isRefreshing,
+        onRefresh = onRefresh,
+        state = pullState,
+        modifier = Modifier.fillMaxSize(),
+        indicator = {
+            PullToRefreshDefaults.Indicator(
+                state = pullState,
+                isRefreshing = isRefreshing,
+                modifier = Modifier
+                    .align(Alignment.TopCenter)
+                    .padding(top = contentPadding.calculateTopPadding()),
             )
+        },
+    ) {
+        // Adaptive cells: a single column on a phone-width list pane, multiple columns
+        // when the list pane is wider (e.g. tablet primary pane, desktop, TV).
+        LazyVerticalGrid(
+            columns = GridCells.Adaptive(360.dp),
+            contentPadding = contentPadding,
+            modifier = Modifier
+                .fillMaxSize()
+                // The Scaffold insets are applied as contentPadding above so items
+                // scroll under the bars; consume them so nothing below pads twice.
+                .consumeWindowInsets(contentPadding)
+                // When focus comes back from the detail pane / player, return it to
+                // the item that was focused before instead of the top of the list.
+                .focusRestorer(firstItemFocusRequester),
+        ) {
+            items(talks, key = { it.id }) { talk ->
+                val isFirst = talk === talks.first()
+                TalkListItem(
+                    talk = talk,
+                    isSelected = talk.id == selectedTalkId,
+                    onClick = { onTalkClick(talk) },
+                    modifier = if (isFirst) Modifier.focusRequester(firstItemFocusRequester) else Modifier,
+                )
+            }
         }
     }
 }
