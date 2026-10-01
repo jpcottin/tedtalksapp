@@ -11,6 +11,7 @@ import io.mockk.mockk
 import io.mockk.mockkStatic
 import io.mockk.unmockkStatic
 import io.mockk.verify
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
@@ -19,6 +20,7 @@ import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
@@ -73,6 +75,44 @@ class TedTalksViewModelTest {
         assertTrue(state is TedTalksUiState.Success)
         assertEquals(sampleTalks, (state as TedTalksUiState.Success).talks)
         assertEquals(2, repo.fetchCount)
+    }
+
+    @Test
+    fun loadTalks_withListShowing_refreshesBehindItInsteadOfShowingLoading() = runTest {
+        val repo = FakeTedTalksRepository(Result.success(sampleTalks))
+        val viewModel = TedTalksViewModel(repo)
+        val newTalks = sampleTalks.take(1)
+        repo.response = Result.success(newTalks)
+        repo.gate = CompletableDeferred()
+
+        viewModel.loadTalks()
+
+        // In flight: old list still showing, refresh flag up.
+        assertTrue(viewModel.isRefreshing.value)
+        assertEquals(sampleTalks, (viewModel.uiState.value as TedTalksUiState.Success).talks)
+
+        repo.gate!!.complete(Unit)
+
+        assertFalse(viewModel.isRefreshing.value)
+        assertEquals(newTalks, (viewModel.uiState.value as TedTalksUiState.Success).talks)
+        assertNull(viewModel.refreshError.value)
+    }
+
+    @Test
+    fun loadTalks_refreshFailure_keepsListAndReportsError() = runTest {
+        val repo = FakeTedTalksRepository(Result.success(sampleTalks))
+        val viewModel = TedTalksViewModel(repo)
+        repo.response = Result.failure(RuntimeException("offline"))
+
+        viewModel.loadTalks()
+
+        assertFalse(viewModel.isRefreshing.value)
+        assertEquals(sampleTalks, (viewModel.uiState.value as TedTalksUiState.Success).talks)
+        assertEquals("offline", viewModel.refreshError.value)
+
+        viewModel.clearRefreshError()
+
+        assertNull(viewModel.refreshError.value)
     }
 
     @Test

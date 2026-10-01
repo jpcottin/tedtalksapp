@@ -28,6 +28,14 @@ class TedTalksViewModel(
     private val _selectedTalkId = MutableStateFlow<String?>(null)
     val selectedTalkId: StateFlow<String?> = _selectedTalkId.asStateFlow()
 
+    // True while the feed is being reloaded behind an already displayed list.
+    private val _isRefreshing = MutableStateFlow(false)
+    val isRefreshing: StateFlow<Boolean> = _isRefreshing.asStateFlow()
+
+    // A reload that failed while a list was showing; cleared once the UI has shown it.
+    private val _refreshError = MutableStateFlow<String?>(null)
+    val refreshError: StateFlow<String?> = _refreshError.asStateFlow()
+
     private var exoPlayer: ExoPlayer? = null
     private var currentVideoUrl: String? = null
 
@@ -40,11 +48,24 @@ class TedTalksViewModel(
 
     fun loadTalks() {
         viewModelScope.launch {
-            _uiState.value = TedTalksUiState.Loading
+            // With a list already on screen, reload behind it instead of replacing
+            // it with the spinner; a failure then keeps the stale list and is
+            // reported through refreshError.
+            val hasTalks = _uiState.value is TedTalksUiState.Success
+            if (hasTalks) _isRefreshing.value = true else _uiState.value = TedTalksUiState.Loading
             repository.fetchTalks()
                 .onSuccess { _uiState.value = TedTalksUiState.Success(it) }
-                .onFailure { _uiState.value = TedTalksUiState.Error(it.message ?: "Unknown error") }
+                .onFailure {
+                    val message = it.message ?: "Unknown error"
+                    if (hasTalks) _refreshError.value = message
+                    else _uiState.value = TedTalksUiState.Error(message)
+                }
+            _isRefreshing.value = false
         }
+    }
+
+    fun clearRefreshError() {
+        _refreshError.value = null
     }
 
     fun selectTalk(id: String) {

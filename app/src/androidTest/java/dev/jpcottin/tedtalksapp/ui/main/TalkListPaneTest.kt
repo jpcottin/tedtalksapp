@@ -5,7 +5,10 @@ import androidx.compose.ui.test.assertHasClickAction
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performTouchInput
+import androidx.compose.ui.test.swipeDown
 import dev.jpcottin.tedtalksapp.data.TalkItem
 import org.junit.Assert.assertEquals
 import org.junit.Rule
@@ -71,5 +74,43 @@ class TalkListPaneTest {
         composeTestRule.onNodeWithText("Network down").assertIsDisplayed()
         composeTestRule.onNodeWithText("Try again").performClick()
         assert(retried) { "Expected retry callback to fire" }
+    }
+
+    @Test
+    fun success_pullingDownFiresRefresh() {
+        var refreshed = false
+        composeTestRule.setContent {
+            TalkListPane(
+                uiState = TedTalksUiState.Success(talks),
+                selectedTalkId = null,
+                onTalkClick = {},
+                onRetry = {},
+                onRefresh = { refreshed = true },
+            )
+        }
+
+        // A short flick stays under the pull threshold; drag most of the pane.
+        composeTestRule.onRoot().performTouchInput {
+            swipeDown(startY = height * 0.3f, endY = height * 0.95f, durationMillis = 600)
+        }
+        composeTestRule.waitForIdle()
+
+        assert(refreshed) { "Expected pull-to-refresh to fire" }
+    }
+
+    @Test
+    fun success_refreshErrorShowsSnackbar() {
+        composeTestRule.setContent {
+            TalkListPane(
+                uiState = TedTalksUiState.Success(talks),
+                selectedTalkId = null,
+                onTalkClick = {},
+                onRetry = {},
+                refreshError = "offline",
+            )
+        }
+
+        composeTestRule.onNodeWithText("Couldn't refresh: offline").assertIsDisplayed()
+        composeTestRule.onNodeWithText("First talk").assertIsDisplayed()
     }
 }
