@@ -41,9 +41,11 @@ All emulator-runner legs use full diagnostics (`-verbose -show-kernel -debug-met
 
 A high-fidelity Android demonstration app centered around the official [TED Talks HD RSS feed](https://feeds.feedburner.com/TedtalksHD). This project serves as a reference implementation for building deeply adaptive UIs that span the entire Android ecosystem—from compact mobile screens and foldables to large-screen spatial environments like Android XR and lean-back experiences on Google TV.
 
+> **Note: the feed is frozen.** The HD video feed stopped updating on May 21, 2025. Its FeedBurner origin (a `pa.tedcdn.com` URL) now returns 404, and FeedBurner keeps serving the last cached copy. TED's listed feeds now redirect to an audio-only Acast feed for *TED Talks Daily* (mp3 enclosures, no speaker field, one shared cover image), which does not fit a video showcase. The app keeps the frozen HD feed on purpose: its 148 items are stable demo data with thumbnails, speakers, and mp4 URLs. Checked October 2026.
+
 ## 🚀 Key Objectives
 
-- **Live Data Integration:** Real-time fetching and parsing of the TED Talks HD RSS feed.
+- **Live Data Integration:** Fetching and parsing of the TED Talks HD RSS feed (see the frozen-feed note above).
 - **Adaptive Layout Excellence:** A single codebase supports radically different form factors using Jetpack Compose's latest adaptive APIs.
 - **Cross-Platform Consistency:** High-quality experience on Phone, Tablet, Foldable, TV, and XR.
 - **Adaptive Navigation:** Uses **Navigation 3** with `ListDetailSceneStrategy` so the list/detail layout collapses to a single pane on phones and expands to side-by-side panes on foldables, tablets, and XR. Each pane is its own back-stack entry rather than a managed child of a scaffold.
