@@ -14,17 +14,19 @@ import kotlinx.coroutines.test.runTest
 class DefaultTedTalksRepositoryTest {
 
     private lateinit var server: MockWebServer
+    private lateinit var client: OkHttpClient
     private lateinit var repository: DefaultTedTalksRepository
 
     @Before
     fun setUp() {
         server = MockWebServer().apply { start() }
+        client = OkHttpClient.Builder()
+            .connectTimeout(2, TimeUnit.SECONDS)
+            .readTimeout(2, TimeUnit.SECONDS)
+            .build()
         repository = DefaultTedTalksRepository(
             feedUrl = server.url("/feed").toString(),
-            client = OkHttpClient.Builder()
-                .connectTimeout(2, TimeUnit.SECONDS)
-                .readTimeout(2, TimeUnit.SECONDS)
-                .build(),
+            client = client,
         )
     }
 
@@ -78,6 +80,30 @@ class DefaultTedTalksRepositoryTest {
         val result = repository.fetchTalks()
 
         assertTrue("Expected failure for malformed XML, got $result", result.isFailure)
+    }
+
+    // An unclosed response keeps its connection checked out of the pool.
+    private fun assertNoLeakedConnection() {
+        val pool = client.connectionPool
+        assertEquals(pool.connectionCount(), pool.idleConnectionCount())
+    }
+
+    @Test
+    fun fetchTalks_httpError_closesResponse() = runTest {
+        server.enqueue(MockResponse().setResponseCode(500).setBody("server exploded"))
+
+        repository.fetchTalks()
+
+        assertNoLeakedConnection()
+    }
+
+    @Test
+    fun fetchTalks_malformedXml_closesResponse() = runTest {
+        server.enqueue(MockResponse().setResponseCode(200).setBody("<rss><channel><item><title>cut off"))
+
+        repository.fetchTalks()
+
+        assertNoLeakedConnection()
     }
 
     @Test
