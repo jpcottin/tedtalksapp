@@ -23,12 +23,11 @@ class DefaultTedTalksRepository(
     override suspend fun fetchTalks(): Result<List<TalkItem>> = withContext(Dispatchers.IO) {
         runCatching {
             val request = Request.Builder().url(feedUrl).build()
-            val response = client.newCall(request).execute()
-            if (!response.isSuccessful) error("HTTP ${response.code}")
-            val body = response.body ?: error("Empty response body")
-            val talks = parser.parse(body.byteStream())
-            response.close()
-            talks
+            client.newCall(request).execute().use { response ->
+                if (!response.isSuccessful) error("HTTP ${response.code}")
+                val body = response.body ?: error("Empty response body")
+                parser.parse(body.byteStream())
+            }
         }
     }
 }

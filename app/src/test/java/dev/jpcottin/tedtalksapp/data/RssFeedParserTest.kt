@@ -28,9 +28,53 @@ class RssFeedParserTest {
         assertEquals("This is what the future of media looks like", talk.title)
         assertEquals("Hamish McKenzie", talk.speaker)
         assertEquals("May 21, 2025", talk.pubDate)
-        assertEquals("00:10:58", talk.duration)
+        assertEquals("10:58", talk.duration)
         assertEquals("https://example.com/image.jpg", talk.imageUrl)
         assertEquals("https://example.com/video.mp4", talk.videoUrl)
+    }
+
+    private fun durationOf(raw: String): String = parseString(
+        """
+            <rss xmlns:itunes="http://www.itunes.com/dtds/podcast-1.0.dtd" version="2.0">
+                <channel>
+                    <item>
+                        <title>Some Title</title>
+                        <itunes:duration>$raw</itunes:duration>
+                    </item>
+                </channel>
+            </rss>
+        """.trimIndent()
+    ).single().duration
+
+    @Test
+    fun parse_duration_dropsZeroHours() {
+        assertEquals("10:58", durationOf("00:10:58"))
+        assertEquals("09:46", durationOf("00:09:46"))
+    }
+
+    @Test
+    fun parse_duration_keepsNonZeroHoursWithoutPadding() {
+        assertEquals("1:02:03", durationOf("01:02:03"))
+    }
+
+    @Test
+    fun parse_duration_leavesOtherFormatsAlone() {
+        assertEquals("29:29", durationOf("29:29"))
+        assertEquals("658", durationOf("658"))
+        assertEquals("", durationOf(""))
+    }
+
+    @Test(timeout = 5_000)
+    fun parse_feedTruncatedInsideItem_throwsInsteadOfHanging() {
+        val truncated = listOf(
+            "<rss><channel><item><title>cut off",
+            "<rss><channel><item><title>Done</title><media:group><media:content",
+            "<rss><channel><item><title>Done</title><unknown><child>",
+        )
+        for (xml in truncated) {
+            val result = runCatching { parseString(xml) }
+            assertTrue("Expected failure for '$xml', got $result", result.isFailure)
+        }
     }
 
     @Test

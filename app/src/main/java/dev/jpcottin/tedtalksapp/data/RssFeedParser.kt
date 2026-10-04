@@ -1,6 +1,7 @@
 package dev.jpcottin.tedtalksapp.data
 
 import org.xmlpull.v1.XmlPullParser
+import org.xmlpull.v1.XmlPullParserException
 import org.xmlpull.v1.XmlPullParserFactory
 import java.io.InputStream
 import java.text.SimpleDateFormat
@@ -38,6 +39,7 @@ class RssFeedParser {
         while (true) {
             val event = parser.next()
             if (event == XmlPullParser.END_TAG && parser.name == "item") break
+            if (event == XmlPullParser.END_DOCUMENT) throw truncatedFeed()
             if (event != XmlPullParser.START_TAG) continue
             when (parser.name) {
                 "title" -> title = readText(parser)
@@ -88,7 +90,7 @@ class RssFeedParser {
             speaker = cleanSpeaker,
             description = stripHtml(description),
             pubDate = formatDate(pubDate),
-            duration = duration,
+            duration = formatDuration(duration),
             imageUrl = imageUrl,
             link = link,
             videoUrl = videoUrl,
@@ -114,8 +116,22 @@ class RssFeedParser {
             when (parser.next()) {
                 XmlPullParser.END_TAG -> depth--
                 XmlPullParser.START_TAG -> depth++
+                XmlPullParser.END_DOCUMENT -> throw truncatedFeed()
             }
         }
+    }
+
+    // A feed cut off mid-item never yields the closing tag; without this the
+    // loops above would spin on END_DOCUMENT forever.
+    private fun truncatedFeed() = XmlPullParserException("Feed ended inside an item")
+
+    // The feed sends "00:10:58"; show "10:58", or "1:02:03" past the hour.
+    private fun formatDuration(raw: String): String {
+        val trimmed = raw.trim()
+        val parts = trimmed.split(":")
+        val hours = parts[0].toIntOrNull()
+        if (parts.size != 3 || hours == null) return trimmed
+        return if (hours == 0) "${parts[1]}:${parts[2]}" else "$hours:${parts[1]}:${parts[2]}"
     }
 
     private fun stripHtml(html: String): String {
