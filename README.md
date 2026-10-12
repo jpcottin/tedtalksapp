@@ -3,7 +3,7 @@
 [![Android CI](https://github.com/jpcottin/tedtalksapp/actions/workflows/android.yml/badge.svg?branch=main)](https://github.com/jpcottin/tedtalksapp/actions/workflows/android.yml)
 
 <details>
-<summary><b>CI details</b> — build/lint/screenshot jobs + emulator matrix, API 32 → 37.1, plus Android CLI and Emulator Preview legs</summary>
+<summary><b>CI details</b> — build/lint/screenshot jobs + emulator matrix, API 32 → 37.2, plus Android CLI and Emulator Preview legs</summary>
 
 Besides lint, unit tests, Compose screenshot validation, and a debug build, instrumented tests run on GitHub-hosted emulators:
 
@@ -13,6 +13,7 @@ Besides lint, unit tests, Compose screenshot validation, and a debug build, inst
 | API 37.0 | `google_apis_ps16k` (16 KB page size) | stable | lavapipe | non-blocking |
 | API 37.0 | `google_apis_ps16k` | canary (`--channel=3`) | lavapipe, auto | non-blocking |
 | API 37.1 | `google_apis_ps16k` | canary | lavapipe, auto | non-blocking |
+| API 37.2 | `google_apis_ps16k` | canary | lavapipe, auto | non-blocking |
 | Android CLI experiment | `google_apis_ps16k` 37.0 | canary | emulator default | non-blocking |
 | Emulator Preview (`emulators;latest`) | `google_apis_ps16k` 37.0 | preview package | auto | non-blocking |
 | Emulator Preview multi-run (snapshot cycles) | `google_apis_ps16k` 37.0 | preview package | auto | non-blocking |
