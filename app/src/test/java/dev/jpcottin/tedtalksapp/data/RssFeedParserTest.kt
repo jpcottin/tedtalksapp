@@ -77,6 +77,60 @@ class RssFeedParserTest {
         }
     }
 
+    private fun itemWith(media: String): String = """
+        <rss version="2.0" xmlns:itunes="http://www.itunes.com/dtds/podcast-1.0.dtd" xmlns:media="http://search.yahoo.com/mrss/">
+          <channel>
+            <item>
+              <title>Talk</title>
+              <guid>1</guid>
+              $media
+            </item>
+          </channel>
+        </rss>
+    """.trimIndent()
+
+    @Test
+    fun parse_image_firstImageElementWins() {
+        val thumbnailFirst = parseString(itemWith("""
+            <media:thumbnail url="https://example.com/thumb.jpg"/>
+            <itunes:image href="https://example.com/itunes.jpg"/>
+        """)).single()
+        assertEquals("https://example.com/thumb.jpg", thumbnailFirst.imageUrl)
+
+        val itunesFirst = parseString(itemWith("""
+            <itunes:image href="https://example.com/itunes.jpg"/>
+            <media:thumbnail url="https://example.com/thumb.jpg"/>
+        """)).single()
+        assertEquals("https://example.com/itunes.jpg", itunesFirst.imageUrl)
+    }
+
+    @Test
+    fun parse_video_onlyMp4MediaContentWithAUrlIsUsed() {
+        val talk = parseString(itemWith("""
+            <media:content url="https://example.com/audio.mp3" type="audio/mpeg"/>
+            <media:content type="video/mp4"/>
+            <media:content url="https://example.com/talk.mp4" type="video/mp4"/>
+        """)).single()
+        assertEquals("https://example.com/talk.mp4", talk.videoUrl)
+
+        val none = parseString(itemWith("""
+            <media:content url="https://example.com/audio.mp3" type="audio/mpeg"/>
+        """)).single()
+        assertTrue(none.videoUrl.isNullOrEmpty())
+    }
+
+    @Test
+    fun parse_mediaGroup_childrenAreRead() {
+        val talk = parseString(itemWith("""
+            <media:group>
+              <media:thumbnail url="https://example.com/thumb.jpg"/>
+              <media:content url="https://example.com/talk.mp4" type="video/mp4"/>
+            </media:group>
+        """)).single()
+        assertEquals("https://example.com/thumb.jpg", talk.imageUrl)
+        assertEquals("https://example.com/talk.mp4", talk.videoUrl)
+    }
+
     @Test
     fun parse_emptyFeed_returnsEmptyList() {
         val xml = """
