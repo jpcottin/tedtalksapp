@@ -5,12 +5,35 @@ import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import org.junit.After
+import org.junit.Before
 import java.io.ByteArrayInputStream
 import java.io.InputStream
+import java.util.Locale
+import java.util.TimeZone
 
 class RssFeedParserTest {
 
     private val parser = RssFeedParser()
+
+    // formatDate renders in the JVM's default locale and time zone; pin both so
+    // "May 21, 2025" holds on a French machine or east of UTC+9.
+    private lateinit var defaultLocale: Locale
+    private lateinit var defaultTimeZone: TimeZone
+
+    @Before
+    fun pinLocaleAndTimeZone() {
+        defaultLocale = Locale.getDefault()
+        defaultTimeZone = TimeZone.getDefault()
+        Locale.setDefault(Locale.US)
+        TimeZone.setDefault(TimeZone.getTimeZone("UTC"))
+    }
+
+    @After
+    fun restoreLocaleAndTimeZone() {
+        Locale.setDefault(defaultLocale)
+        TimeZone.setDefault(defaultTimeZone)
+    }
 
     private fun parseString(xml: String): List<TalkItem> {
         return parser.parse(ByteArrayInputStream(xml.toByteArray(Charsets.UTF_8)))
