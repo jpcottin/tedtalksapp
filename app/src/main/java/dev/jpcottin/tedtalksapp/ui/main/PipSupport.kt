@@ -98,15 +98,20 @@ internal fun PipOnLeaveEffect(exoPlayer: ExoPlayer?, shouldEnterPip: Boolean) {
 @RequiresApi(Build.VERSION_CODES.O)
 private fun pipAspectRatio(player: ExoPlayer?): Rational {
     val size = player?.videoSize
-    val rational = if (size != null && size != VideoSize.UNKNOWN && size.height > 0) {
-        Rational(size.width, size.height)
-    } else {
-        Rational(16, 9)
-    }
-    // The system only accepts PiP aspect ratios between 1:2.39 and 2.39:1.
+    val (w, h) = if (size != null && size != VideoSize.UNKNOWN) pipAspect(size.width, size.height) else pipAspect(0, 0)
+    return Rational(w, h)
+}
+
+/**
+ * The picture-in-picture aspect ratio for a video of [width] x [height]: the video's own ratio,
+ * clamped to the 1:2.39 .. 2.39:1 band the system accepts, and 16:9 when the size is unknown.
+ */
+internal fun pipAspect(width: Int, height: Int): Pair<Int, Int> {
+    if (width <= 0 || height <= 0) return 16 to 9
+    val ratio = width.toFloat() / height
     return when {
-        rational.toFloat() > 2.39f -> Rational(239, 100)
-        rational.toFloat() < 1f / 2.39f -> Rational(100, 239)
-        else -> rational
+        ratio > 2.39f -> 239 to 100
+        ratio < 1f / 2.39f -> 100 to 239
+        else -> width to height
     }
 }
