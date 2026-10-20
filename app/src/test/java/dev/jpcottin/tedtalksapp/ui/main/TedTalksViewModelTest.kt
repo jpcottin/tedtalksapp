@@ -2,6 +2,7 @@ package dev.jpcottin.tedtalksapp.ui.main
 
 import android.content.Context
 import android.net.Uri
+import androidx.lifecycle.ViewModelStore
 import androidx.media3.common.Player
 import androidx.media3.exoplayer.ExoPlayer
 import dev.jpcottin.tedtalksapp.data.FakeTedTalksRepository
@@ -193,5 +194,88 @@ class TedTalksViewModelTest {
         viewModel.getExoPlayer(context, "https://cdn/a.mp4")
 
         verify(exactly = 0) { player.seekTo(any<Long>()) }
+    }
+
+    @Test
+    fun getExoPlayer_firstTalk_startsFromTheTopAndPlays() = runTest {
+        val player = mockk<ExoPlayer>(relaxed = true)
+        val viewModel = playerViewModel(player)
+
+        viewModel.getExoPlayer(mockk(relaxed = true), "https://cdn/a.mp4")
+
+        verify(exactly = 0) { player.seekTo(any<Long>()) }
+        verify { player.playWhenReady = true }
+    }
+
+    // --- player lifecycle: one player per view model, paused on deselect, released on clear ---
+
+    @Test
+    fun getExoPlayer_switchingTalks_keepsOnePlayer() = runTest {
+        val player = mockk<ExoPlayer>(relaxed = true)
+        var built = 0
+        val viewModel = TedTalksViewModel(FakeTedTalksRepository(Result.success(sampleTalks))) {
+            built++
+            player
+        }
+        val context = mockk<Context>(relaxed = true)
+
+        viewModel.getExoPlayer(context, "https://cdn/a.mp4")
+        viewModel.getExoPlayer(context, "https://cdn/b.mp4")
+
+        assertEquals(1, built)
+        verify(exactly = 2) { player.setMediaItem(any()) }
+    }
+
+    @Test
+    fun clearSelection_pausesThePlayer() = runTest {
+        val player = mockk<ExoPlayer>(relaxed = true)
+        val viewModel = playerViewModel(player)
+        viewModel.getExoPlayer(mockk(relaxed = true), "https://cdn/a.mp4")
+        viewModel.selectTalk("1")
+
+        viewModel.clearSelection()
+
+        verify(exactly = 1) { player.pause() }
+        verify(exactly = 0) { player.release() }
+    }
+
+    @Test
+    fun clearSelection_beforeAnyPlayback_doesNotBuildAPlayer() = runTest {
+        var built = 0
+        val viewModel = TedTalksViewModel(FakeTedTalksRepository(Result.success(sampleTalks))) {
+            built++
+            mockk(relaxed = true)
+        }
+        viewModel.selectTalk("1")
+
+        viewModel.clearSelection()
+
+        assertEquals(0, built)
+    }
+
+    @Test
+    fun onCleared_releasesThePlayer() = runTest {
+        val player = mockk<ExoPlayer>(relaxed = true)
+        val viewModel = playerViewModel(player)
+        viewModel.getExoPlayer(mockk(relaxed = true), "https://cdn/a.mp4")
+        val store = ViewModelStore().apply { put("talks", viewModel) }
+
+        store.clear()   // the owner is gone: onCleared
+
+        verify(exactly = 1) { player.release() }
+    }
+
+    @Test
+    fun onCleared_withoutAPlayer_hasNothingToRelease() = runTest {
+        var built = 0
+        val viewModel = TedTalksViewModel(FakeTedTalksRepository(Result.success(sampleTalks))) {
+            built++
+            mockk(relaxed = true)
+        }
+        val store = ViewModelStore().apply { put("talks", viewModel) }
+
+        store.clear()
+
+        assertEquals(0, built)
     }
 }
