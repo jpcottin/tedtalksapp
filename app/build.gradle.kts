@@ -32,6 +32,14 @@ android {
         versionName = "1.0"
     }
 
+    // A guest on a software GPU (the API 37.x lavapipe legs, a preview
+    // image on a CI runner) can take seconds to answer a property query;
+    // with the default 10 s timeout Gradle writes the device off as
+    // "Unknown API Level" and runs no tests on it.
+    adbOptions {
+        timeOutInMs = 120_000
+    }
+
     signingConfigs {
         create("release") {
             val storeFilePath = signingValue("storeFile", "RELEASE_STORE_FILE")
