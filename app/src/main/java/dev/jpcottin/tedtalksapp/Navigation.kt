@@ -54,17 +54,17 @@ fun MainNavigation(viewModel: TedTalksViewModel) {
     // instead of dismissing the detail pane. This outer fallback pops the stack; in
     // single-pane scenes NavDisplay's own (more recently registered) handler wins,
     // keeping the predictive-back animation.
-    BackHandler(enabled = backStack.size > 1) {
-        backStack.removeLastOrNull()
-        viewModel.clearSelection()
+    val popDetail = {
+        // What is left on top after the pop is what the list should highlight:
+        // a detail still on screen in a two-pane scene, or nothing.
+        val next = backStack.popDetail()
+        if (next != null) viewModel.selectTalk(next) else viewModel.clearSelection()
     }
+    BackHandler(enabled = backStack.size > 1, onBack = popDetail)
 
     NavDisplay(
         backStack = backStack,
-        onBack = {
-            backStack.removeLastOrNull()
-            viewModel.clearSelection()
-        },
+        onBack = popDetail,
         sceneStrategies = listOf(listDetailStrategy),
         entryProvider = entryProvider {
             entry<TalksList>(
@@ -77,7 +77,7 @@ fun MainNavigation(viewModel: TedTalksViewModel) {
                     selectedTalkId = selectedTalkId,
                     onTalkClick = { talk ->
                         viewModel.selectTalk(talk.id)
-                        backStack.add(TalkDetail(talk.id))
+                        backStack.openTalk(talk.id)
                     },
                     onRetry = viewModel::loadTalks,
                     isRefreshing = isRefreshing,
