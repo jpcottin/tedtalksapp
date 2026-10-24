@@ -12,6 +12,7 @@ import androidx.media3.exoplayer.ExoPlayer
 import dev.jpcottin.tedtalksapp.data.DefaultTedTalksRepository
 import dev.jpcottin.tedtalksapp.data.TalkItem
 import dev.jpcottin.tedtalksapp.data.TedTalksRepository
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -46,8 +47,14 @@ class TedTalksViewModel(
         loadTalks()
     }
 
+    private var loadJob: Job? = null
+
     fun loadTalks() {
-        viewModelScope.launch {
+        // One fetch at a time: a second pull-to-refresh (or a second "Try again")
+        // while one is in flight would drop the indicator when the first returns
+        // and fetch the feed twice for one gesture.
+        if (loadJob?.isActive == true) return
+        loadJob = viewModelScope.launch {
             // With a list already on screen, reload behind it instead of replacing
             // it with the spinner; a failure then keeps the stale list and is
             // reported through refreshError.

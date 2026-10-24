@@ -100,6 +100,25 @@ class TedTalksViewModelTest {
     }
 
     @Test
+    fun loadTalks_whileAFetchIsInFlight_doesNotStartAnother() = runTest {
+        val repo = FakeTedTalksRepository(Result.success(sampleTalks))
+        val viewModel = TedTalksViewModel(repo)                  // the initial load completes
+        assertEquals(1, repo.fetchCount)
+
+        repo.gate = CompletableDeferred()
+        viewModel.loadTalks()                                    // pull to refresh…
+        viewModel.loadTalks()                                    // …and again before it returns
+        assertEquals(2, repo.fetchCount)                         // one request, not two
+        assertTrue(viewModel.isRefreshing.value)
+
+        repo.gate!!.complete(Unit)
+        assertFalse(viewModel.isRefreshing.value)                // the indicator goes with the request
+
+        viewModel.loadTalks()                                    // a later refresh is fine
+        assertEquals(3, repo.fetchCount)
+    }
+
+    @Test
     fun loadTalks_refreshFailure_keepsListAndReportsError() = runTest {
         val repo = FakeTedTalksRepository(Result.success(sampleTalks))
         val viewModel = TedTalksViewModel(repo)
