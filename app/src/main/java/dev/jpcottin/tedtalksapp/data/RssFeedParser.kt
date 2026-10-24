@@ -22,7 +22,12 @@ class RssFeedParser {
             }
             eventType = parser.next()
         }
+        // The list keys its rows by id: an item with no guid, link or video gets its
+        // position, and a guid the feed repeats keeps only its first item (the grid
+        // throws on a key used twice).
         return talks
+            .mapIndexed { i, t -> if (t.id.isEmpty()) t.copy(id = "item-$i") else t }
+            .distinctBy { it.id }
     }
 
     private fun readItem(parser: XmlPullParser): TalkItem {
@@ -76,7 +81,9 @@ class RssFeedParser {
         // When the author is known, drop whichever end matches it; otherwise fall
         // back to the historical speaker-first order.
         val parts = title.split(" | ").map { it.trim() }
-        val cleanSpeaker = author.trim().ifEmpty { parts.getOrElse(0) { "" } }
+        // Without an author, only a "Speaker | Title" pair names a speaker: a lone
+        // title would otherwise be shown twice, as title and as speaker.
+        val cleanSpeaker = author.trim().ifEmpty { if (parts.size >= 2) parts[0] else "" }
         val cleanTitle = when {
             parts.size < 2 -> title.trim()
             parts.last().equals(cleanSpeaker, ignoreCase = true) -> parts.dropLast(1).joinToString(" | ")
@@ -85,7 +92,7 @@ class RssFeedParser {
         }
 
         return TalkItem(
-            id = guid.ifEmpty { link },
+            id = guid.ifEmpty { link }.ifEmpty { videoUrl ?: "" },
             title = cleanTitle,
             speaker = cleanSpeaker,
             description = stripHtml(description),
@@ -135,14 +142,30 @@ class RssFeedParser {
     }
 
     private fun stripHtml(html: String): String {
+        // One pass over the entities: replacing "&amp;" first would re-create "&lt;"
+        // from "&amp;lt;" and decode it a second time.
         return html.replace(Regex("<[^>]*>"), "")
-            .replace("&nbsp;", " ")
-            .replace("&amp;", "&")
-            .replace("&lt;", "<")
-            .replace("&gt;", ">")
-            .replace("&quot;", "\"")
-            .replace("&apos;", "'")
+            .replace(ENTITY) { m ->
+                val body = m.groupValues[1]
+                when {
+                    body.startsWith("#x", ignoreCase = true) -> body.substring(2).toIntOrNull(16)?.let(::codePoint) ?: m.value
+                    body.startsWith("#") -> body.substring(1).toIntOrNull()?.let(::codePoint) ?: m.value
+                    else -> NAMED_ENTITIES[body] ?: m.value
+                }
+            }
             .trim()
+    }
+
+    private fun codePoint(code: Int): String =
+        if (Character.isValidCodePoint(code)) String(Character.toChars(code)) else "\uFFFD"
+
+    private companion object {
+        val ENTITY = Regex("&(#x[0-9a-fA-F]+|#[0-9]+|[a-zA-Z]+);")
+        val NAMED_ENTITIES = mapOf(
+            "amp" to "&", "lt" to "<", "gt" to ">", "quot" to "\"", "apos" to "'",
+            "nbsp" to " ", "hellip" to "\u2026", "mdash" to "\u2014", "ndash" to "\u2013",
+            "rsquo" to "\u2019", "lsquo" to "\u2018", "rdquo" to "\u201D", "ldquo" to "\u201C",
+        )
     }
 
     private fun formatDate(dateStr: String): String {
