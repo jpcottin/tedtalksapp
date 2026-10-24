@@ -15,7 +15,7 @@ Besides lint, unit tests, Compose screenshot validation, and a debug build, inst
 | API 37.1 | `google_apis_ps16k` | canary | lavapipe, auto | non-blocking |
 | API 37.2 | `google_apis_ps16k` | canary | lavapipe, auto | non-blocking |
 | Android CLI experiment | `google_apis_ps16k` 37.0, 37.2 | canary | emulator default | non-blocking |
-| Emulator Preview (`emulators;latest`) | `google_apis_ps16k` 37.0, 37.2 | preview package | auto | non-blocking |
+| Emulator Preview (`emulators;latest`) | `google_apis_ps16k` 37.0, 37.1, 37.2 | preview package | auto | non-blocking |
 | Emulator Preview multi-run (snapshot cycles) | `google_apis_ps16k` 37.0 | preview package | auto | non-blocking |
 | Android CLI multi-run (snapshot cycles) | `google_apis_ps16k` 37.0 | canary | emulator default | non-blocking |
 
@@ -195,7 +195,7 @@ Pushes to `main` and PRs targeting it run [`.github/workflows/android.yml`](.git
 | **Instrumented Tests** | `connectedDebugAndroidTest` (the Compose UI tests) on x86\_64 `google_apis` emulators at API 32, 33, 34, 35 and 36 with `-gpu auto` | yes | `instrumented-test-report-api*` |
 | **Instrumented Tests, API 37.x** | The same tests on the API 37.0, 37.1 and 37.2 `google_apis_ps16k` images (16 KB page size): 37.0 from the stable channel on lavapipe, and every level from the canary channel on lavapipe and auto | no | `instrumented-test-report-api37.*-<suffix>` |
 | **Android CLI experiment** | The whole emulator flow through the [`android` CLI](https://d.android.com/tools/agents/android-cli) (`android sdk install --canary`, `android emulator create/start/stop`) on the canary emulator, API 37.0 and 37.2 | no | `instrumented-test-report-android-cli-experiment-*` (on failure) |
-| **Emulator Preview experiment** | The `emulators;latest` preview package launched by its own binary, API 37.0 and 37.2 | no | `instrumented-test-report-emulator-preview-*` (on failure) |
+| **Emulator Preview experiment** | The `emulators;latest` preview package launched by its own binary, API 37.0, 37.1 and 37.2 | no | `instrumented-test-report-emulator-preview-*` (on failure) |
 | **Emulator Preview multi-run** | Four boot cycles against the same AVD with quickboot snapshots enabled: the app is launched in the first cycle only, and every later cycle checks the snapshot brought it back by itself, still running and still rendering | no | `preview-multirun-screenshots`, `preview-multirun-emulator-logs` |
 | **Android CLI multi-run** | The same four-cycle snapshot experiment driven by the `android` CLI against the canary emulator, as a comparison | no | `cli-multirun-screenshots`, `cli-multirun-logs` |
 
