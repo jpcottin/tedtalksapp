@@ -3,6 +3,7 @@ package dev.jpcottin.tedtalksapp.data
 import okhttp3.OkHttpClient
 import okhttp3.mockwebserver.MockResponse
 import okhttp3.mockwebserver.MockWebServer
+import okhttp3.mockwebserver.SocketPolicy
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -150,5 +151,35 @@ class DefaultTedTalksRepositoryTest {
                 </channel>
             </rss>
         """.trimIndent()
+    }
+
+    @Test
+    fun fetchTalks_connectionDropped_isANetworkFailure() = runTest {
+        server.enqueue(MockResponse().setSocketPolicy(SocketPolicy.DISCONNECT_AT_START))
+
+        val result = repository.fetchTalks()
+
+        assertTrue(result.exceptionOrNull() is FeedException.Network)
+        assertEquals("Check your connection", result.exceptionOrNull()?.message)
+    }
+
+    @Test
+    fun fetchTalks_serverError_isAnHttpFailureWithTheCode() = runTest {
+        server.enqueue(MockResponse().setResponseCode(503))
+
+        val result = repository.fetchTalks()
+
+        val e = result.exceptionOrNull()
+        assertTrue(e is FeedException.Http)
+        assertEquals(503, (e as FeedException.Http).code)
+    }
+
+    @Test
+    fun fetchTalks_malformedXml_isAMalformedFailure() = runTest {
+        server.enqueue(MockResponse().setBody("<rss><channel><item><title>Oops"))
+
+        val result = repository.fetchTalks()
+
+        assertTrue(result.exceptionOrNull() is FeedException.Malformed)
     }
 }
