@@ -109,6 +109,9 @@ class TedTalksViewModel(
         } else if (player.playbackState == Player.STATE_ENDED) {
             // The same talk again after it ran to its end: start it over.
             player.seekToDefaultPosition()
+        } else if (player.playbackState == Player.STATE_IDLE) {
+            // A playback error leaves the player idle: Play is a retry.
+            player.prepare()
         }
         // Asked for (a Play tap): the player plays, also when it was paused by a
         // deselection or sits on its end frame. Callers acquire it once per

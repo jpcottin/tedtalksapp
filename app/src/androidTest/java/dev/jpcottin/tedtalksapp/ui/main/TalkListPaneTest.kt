@@ -3,6 +3,8 @@ package dev.jpcottin.tedtalksapp.ui.main
 import dev.jpcottin.tedtalksapp.TestActivity
 import androidx.compose.ui.test.assertHasClickAction
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.assertIsNotSelected
+import androidx.compose.ui.test.assertIsSelected
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.onRoot
@@ -96,6 +98,26 @@ class TalkListPaneTest {
         composeTestRule.waitForIdle()
 
         assert(refreshed) { "Expected pull-to-refresh to fire" }
+    }
+
+    @Test
+    fun success_exposesTheOpenTalkAsSelected() {
+        composeTestRule.setContent {
+            TalkListPane(uiState = TedTalksUiState.Success(talks), selectedTalkId = "1", onTalkClick = {}, onRetry = {})
+        }
+        composeTestRule.onNodeWithText("First talk").assertIsSelected()
+        composeTestRule.onNodeWithText("Second talk").assertIsNotSelected()
+    }
+
+    @Test
+    fun success_refreshErrorIsConsumedWhenShown() {
+        var shownCalls = 0
+        composeTestRule.setContent {
+            TalkListPane(uiState = TedTalksUiState.Success(talks), selectedTalkId = null, onTalkClick = {},
+                onRetry = {}, refreshError = "offline", onRefreshErrorShown = { shownCalls++ })
+        }
+        composeTestRule.onNodeWithText("Couldn't refresh: offline").assertIsDisplayed()
+        assertEquals(1, shownCalls)
     }
 
     @Test
