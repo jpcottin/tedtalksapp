@@ -146,13 +146,13 @@ The repository is wired for constructor injection, so tests can pass a fake with
 
 - **`TedTalksRepository`** is an interface; `DefaultTedTalksRepository` is the production implementation.
 - **`FakeTedTalksRepository`** lives in `app/src/test/.../data/` and lets tests pin any `Result<List<TalkItem>>`.
-- **`DefaultTedTalksRepository`** is tested against an in-process [`MockWebServer`](https://square.github.io/okhttp/features/mockwebserver/) so HTTP error codes, malformed XML, empty bodies, and the request URL/method are all covered without hitting the network.
+- **`DefaultTedTalksRepository`** is tested against an in-process [`MockWebServer`](https://square.github.io/okhttp/features/mockwebserver/) so HTTP error codes, malformed XML, empty feeds, and the request URL/method are all covered without hitting the network.
 
 | Type | Source set | Command | What it covers |
 |------|-----------|---------|----------------|
 | Unit tests | `src/test/` | `./gradlew :app:testDebugUnitTest` | `RssFeedParser` parsing edge cases, `DefaultTedTalksRepository` HTTP behavior via MockWebServer, and `TedTalksViewModel` state machine (loading / success / error / retry / selection) and playback-position bookkeeping (resume / restart-after-finish) and player lifecycle (one player per view model, paused on deselect, released when the owner is cleared) against a mocked `ExoPlayer`; feed image precedence and video selection; the picture-in-picture aspect clamp. |
 | Compose UI tests | `src/androidTest/` | `./gradlew :app:connectedDebugAndroidTest` | `TalkListPane`, `TalkDetailPane`, and the full `MainNavigation` graph (including a back-from-detail regression guard for the two-pane back fix) against a small in-test `TedTalksRepository` fake that serves a fixed talk list. Pane assertions scroll to off-screen nodes so they pass on TV/wide viewports too. |
-| Screenshot tests | `src/screenshotTest/` | `./gradlew :app:updateDebugScreenshotTest` (record) / `./gradlew :app:validateDebugScreenshotTest` (verify) | Curated `@PreviewTest` previews of `TalkListPane` (loading/error/success), `TalkDetailPane` (including a tabletop-posture layout, produced by overriding `LocalUiMediaScope` the way the MediaQuery docs recommend for previews), and `EmptyDetailPlaceholder` across phone/foldable/tablet form factors. Uses the experimental [Compose Preview Screenshot Testing tool](https://developer.android.com/studio/preview/compose-screenshot-testing). |
+| Screenshot tests | `src/screenshotTest/` | `./gradlew :app:updateDebugScreenshotTest` (record) / `./gradlew :app:validateDebugScreenshotTest` (verify) | Curated `@PreviewTest` previews: `TalkListPane` loading and error states plus its success state on phone, foldable and tablet; `TalkDetailPane` on phone (light and dark), on tablet, and in the tabletop posture (produced by overriding `LocalUiMediaScope` the way the MediaQuery docs recommend for previews); and `EmptyDetailPlaceholder`. Uses the experimental [Compose Preview Screenshot Testing tool](https://developer.android.com/studio/preview/compose-screenshot-testing). |
 
 Compose `@Preview`s in `src/main/` (e.g. `TalkListPanePreview`) remain for design-time use in Android Studio and are tagged with a `FormFactorPreviews` multi-preview annotation.
 
@@ -187,13 +187,13 @@ The `:baselineprofile` module (`com.android.test` + `androidx.baselineprofile`) 
 
 ### CI
 
-Pushes to `main` and PRs targeting it run [`.github/workflows/android.yml`](.github/workflows/android.yml). Two jobs gate merges; the rest explore newer emulator tooling and are marked `continue-on-error`, so a preview package that moves underneath us reports its findings without blocking a PR.
+Pushes to `main` and PRs targeting it run [`.github/workflows/android.yml`](.github/workflows/android.yml). The build job and the API 32 to 36 legs of the instrumented matrix gate merges; the API 37.x legs and the experiment jobs explore newer emulator tooling and are marked `continue-on-error`, so a preview package that moves underneath us reports its findings without blocking a PR.
 
 | Job | What it does | Gates | Artifacts |
 |-----|-------------|-------|-----------|
 | **build** | lint → unit tests → screenshot validation → debug build | yes | `screenshot-test-report` (HTML diff report, on failure) |
 | **Instrumented Tests** | `connectedDebugAndroidTest` (the Compose UI tests) on x86\_64 `google_apis` emulators at API 32, 33, 34, 35 and 36 with `-gpu auto` | yes | `instrumented-test-report-api*` |
-| **Instrumented Tests, API 37.x** | The same tests on the API 37.0, 37.1 and 37.2 `google_apis_ps16k` images (16 KB page size): 37.0 from the stable channel on lavapipe, and every level from the canary channel on lavapipe and auto | no | `instrumented-test-report-api37.*-<suffix>` |
+| **Instrumented Tests, API 37.x legs** | The same matrix job's non-blocking legs: the same tests on the API 37.0, 37.1 and 37.2 `google_apis_ps16k` images (16 KB page size): 37.0 from the stable channel on lavapipe, and every level from the canary channel on lavapipe and auto | no | `instrumented-test-report-api37.*-<suffix>` |
 | **Android CLI experiment** | The whole emulator flow through the [`android` CLI](https://d.android.com/tools/agents/android-cli) (`android sdk install --canary`, `android emulator create/start/stop`) on the canary emulator, API 37.0 and 37.2 | no | `instrumented-test-report-android-cli-experiment-*` (on failure) |
 | **Emulator Preview experiment** | The `emulators;latest` preview package launched by its own binary, API 37.0, 37.1 and 37.2 | no | `instrumented-test-report-emulator-preview-*` (on failure) |
 | **Emulator Preview multi-run** | Four boot cycles against the same AVD with quickboot snapshots enabled: the app is launched in the first cycle only, and every later cycle checks the snapshot brought it back by itself, still running and still rendering | no | `preview-multirun-screenshots`, `preview-multirun-emulator-logs` |
@@ -215,7 +215,7 @@ Every emulator-runner leg boots with full diagnostics (`-verbose -show-kernel -d
 
 ### Prerequisites
 - Android Studio Otter 3+ (for full IDE integration with the Compose Preview Screenshot Testing tool — optional, the underlying Gradle tasks work without it).
-- Android SDK 36 (for the latest adaptive and XR APIs).
+- Android SDK 37 (`compileSdk` 37 for the latest adaptive and XR APIs; `targetSdk` 36).
 - JDK 17.
 
 ### Build & Run
