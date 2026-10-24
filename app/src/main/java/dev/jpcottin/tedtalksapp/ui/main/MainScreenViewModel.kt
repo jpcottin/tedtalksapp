@@ -94,8 +94,14 @@ class TedTalksViewModel(
             player.setMediaItem(MediaItem.fromUri(videoUrl))
             playbackPositions[videoUrl]?.let { player.seekTo(it) }
             player.prepare()
-            player.playWhenReady = true
+        } else if (player.playbackState == Player.STATE_ENDED) {
+            // The same talk again after it ran to its end: start it over.
+            player.seekToDefaultPosition()
         }
+        // Asked for (a Play tap): the player plays, also when it was paused by a
+        // deselection or sits on its end frame. Callers acquire it once per
+        // playback, not on every recomposition.
+        player.playWhenReady = true
         return player
     }
 

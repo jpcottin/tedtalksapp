@@ -174,6 +174,12 @@ fun VideoPlayerView(
                 pv.setFullscreenButtonState(false)
                 pv.setFullscreenButtonClickListener { isFullscreen = true }
             },
+            // The player outlives this view (it belongs to the view model): detach it, or
+            // every view that leaves composition stays registered as a listener for good.
+            onRelease = { pv ->
+                pv.player = null
+                if (playerViewRef === pv) playerViewRef = null
+            },
             modifier = modifier
                 .then(pipSourceRectModifier)
                 .focusRequester(focusRequester)
@@ -246,6 +252,10 @@ private fun FullscreenPlayerDialog(
                     }
                     pv.setFullscreenButtonState(true)
                     pv.setFullscreenButtonClickListener { onDismiss() }
+                },
+                onRelease = { pv ->
+                    pv.player = null
+                    if (fullscreenPlayerView === pv) fullscreenPlayerView = null
                 },
                 modifier = Modifier
                     .fillMaxSize()
