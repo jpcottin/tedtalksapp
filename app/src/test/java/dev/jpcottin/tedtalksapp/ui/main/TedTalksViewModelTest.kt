@@ -186,6 +186,34 @@ class TedTalksViewModelTest {
     }
 
     @Test
+    fun getExoPlayer_sameTalkAfterADeselection_playsAgainWithoutRePreparing() = runTest {
+        val player = mockk<ExoPlayer>(relaxed = true)
+        val viewModel = playerViewModel(player)
+        val context = mockk<Context>(relaxed = true)
+
+        viewModel.getExoPlayer(context, "https://cdn/a.mp4")
+        viewModel.clearSelection()                               // Back: the player pauses
+        viewModel.getExoPlayer(context, "https://cdn/a.mp4")     // the talk opened again, Play tapped
+
+        verify(exactly = 1) { player.prepare() }
+        verify(exactly = 2) { player.playWhenReady = true }
+    }
+
+    @Test
+    fun getExoPlayer_sameTalkAfterItEnded_startsOver() = runTest {
+        val player = mockk<ExoPlayer>(relaxed = true)
+        every { player.playbackState } returns Player.STATE_ENDED
+        val viewModel = playerViewModel(player)
+        val context = mockk<Context>(relaxed = true)
+
+        viewModel.getExoPlayer(context, "https://cdn/a.mp4")
+        viewModel.getExoPlayer(context, "https://cdn/a.mp4")
+
+        verify(exactly = 1) { player.seekToDefaultPosition() }
+        verify(exactly = 1) { player.prepare() }
+    }
+
+    @Test
     fun getExoPlayer_switchingBackToTalk_resumesSavedPosition() = runTest {
         val player = mockk<ExoPlayer>(relaxed = true)
         every { player.playbackState } returns Player.STATE_READY

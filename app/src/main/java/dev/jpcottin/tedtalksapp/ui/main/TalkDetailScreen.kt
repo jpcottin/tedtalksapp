@@ -74,11 +74,16 @@ fun TalkDetailPane(
 ) {
     var isPlayerVisible by rememberSaveable(talk.id) { mutableStateOf(false) }
 
+    // Acquired once per playback: asking the view model on every recomposition
+    // would restart a video the user paused each time the layout changes.
+    val player = if (isPlayerVisible && talk.videoUrl != null && getExoPlayer != null)
+        remember(talk.videoUrl) { getExoPlayer(talk.videoUrl) } else null
+
     // In picture-in-picture the window is tiny: show only the video, full-bleed.
     val isInPip = rememberIsInPipMode()
-    if (isInPip && isPlayerVisible && talk.videoUrl != null && getExoPlayer != null) {
+    if (isInPip && player != null) {
         VideoPlayerView(
-            exoPlayer = getExoPlayer(talk.videoUrl),
+            exoPlayer = player,
             modifier = Modifier
                 .fillMaxSize()
                 .background(Color.Black),
@@ -101,7 +106,7 @@ fun TalkDetailPane(
                 onPlay = { isPlayerVisible = true },
                 showBackButton = showBackButton,
                 onBack = onBack,
-                getExoPlayer = getExoPlayer,
+                player = player,
                 fillParent = true,
                 modifier = Modifier
                     .fillMaxWidth()
@@ -131,7 +136,7 @@ fun TalkDetailPane(
             onPlay = { isPlayerVisible = true },
             showBackButton = showBackButton,
             onBack = onBack,
-            getExoPlayer = getExoPlayer,
+            player = player,
             fillParent = false,
             modifier = Modifier.fillMaxWidth(),
         )
@@ -157,7 +162,8 @@ private fun HeroArea(
     onPlay: () -> Unit,
     showBackButton: Boolean,
     onBack: () -> Unit,
-    getExoPlayer: ((String) -> ExoPlayer)?,
+    /** The player to show, acquired once per playback by the pane; null while the hero image shows. */
+    player: ExoPlayer?,
     fillParent: Boolean,
     modifier: Modifier = Modifier,
 ) {
@@ -173,9 +179,9 @@ private fun HeroArea(
     }
 
     Box(modifier = modifier) {
-        if (isPlayerVisible && talk.videoUrl != null && getExoPlayer != null) {
+        if (player != null) {
             VideoPlayerView(
-                exoPlayer = getExoPlayer(talk.videoUrl),
+                exoPlayer = player,
                 modifier = mediaModifier,
             )
         } else {
