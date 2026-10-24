@@ -61,7 +61,15 @@ class TedTalksViewModel(
             val hasTalks = _uiState.value is TedTalksUiState.Success
             if (hasTalks) _isRefreshing.value = true else _uiState.value = TedTalksUiState.Loading
             repository.fetchTalks()
-                .onSuccess { _uiState.value = TedTalksUiState.Success(it) }
+                .onSuccess { talks ->
+                    // A feed with no talks is a failure the user can act on (Try again), not
+                    // a blank grid; an empty refresh keeps the list and reports instead.
+                    when {
+                        talks.isNotEmpty() -> _uiState.value = TedTalksUiState.Success(talks)
+                        hasTalks -> _refreshError.value = EMPTY_FEED_MESSAGE
+                        else -> _uiState.value = TedTalksUiState.Error(EMPTY_FEED_MESSAGE)
+                    }
+                }
                 .onFailure {
                     val message = it.message ?: "Unknown error"
                     if (hasTalks) _refreshError.value = message
@@ -76,6 +84,10 @@ class TedTalksViewModel(
     }
 
     fun selectTalk(id: String) {
+        // Another talk takes the detail pane: the one playing must not keep its audio
+        // going under the newcomer's hero image (the view detaches, the player does not).
+        val previous = _selectedTalkId.value
+        if (previous != null && previous != id) exoPlayer?.pause()
         _selectedTalkId.value = id
     }
 
@@ -122,6 +134,8 @@ class TedTalksViewModel(
     }
 
     companion object {
+
+        private const val EMPTY_FEED_MESSAGE = "The feed has no talks"
         private fun defaultPlayerFactory(context: Context): ExoPlayer =
             ExoPlayer.Builder(context.applicationContext)
                 .setAudioAttributes(

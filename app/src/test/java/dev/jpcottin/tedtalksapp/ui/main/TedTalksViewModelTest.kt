@@ -53,6 +53,44 @@ class TedTalksViewModelTest {
     }
 
     @Test
+    fun init_emptyFeed_exposesErrorWithRetry() = runTest {
+        val viewModel = TedTalksViewModel(FakeTedTalksRepository(Result.success(emptyList())))
+        val state = viewModel.uiState.value
+        assertTrue("Expected Error but was $state", state is TedTalksUiState.Error)
+    }
+
+    @Test
+    fun loadTalks_emptyRefresh_keepsTheListAndReportsIt() = runTest {
+        val repo = FakeTedTalksRepository(Result.success(sampleTalks))
+        val viewModel = TedTalksViewModel(repo)
+        repo.response = Result.success(emptyList())
+        viewModel.loadTalks()
+        assertTrue(viewModel.uiState.value is TedTalksUiState.Success)
+        assertEquals(sampleTalks, (viewModel.uiState.value as TedTalksUiState.Success).talks)
+        assertTrue(viewModel.refreshError.value != null)
+    }
+
+    @Test
+    fun selectTalk_anotherTalkWhileOnePlays_pausesThePlayer() = runTest {
+        val player = mockk<ExoPlayer>(relaxed = true)
+        val viewModel = playerViewModel(player)
+        viewModel.selectTalk("1")
+        viewModel.getExoPlayer(mockk(relaxed = true), "https://cdn/a.mp4")
+        viewModel.selectTalk("2")                                // B takes the pane
+        verify(exactly = 1) { player.pause() }
+    }
+
+    @Test
+    fun selectTalk_sameTalkAgain_doesNotPause() = runTest {
+        val player = mockk<ExoPlayer>(relaxed = true)
+        val viewModel = playerViewModel(player)
+        viewModel.selectTalk("1")
+        viewModel.getExoPlayer(mockk(relaxed = true), "https://cdn/a.mp4")
+        viewModel.selectTalk("1")
+        verify(exactly = 0) { player.pause() }
+    }
+
+    @Test
     fun fetchFailure_exposesErrorState() = runTest {
         val repo = FakeTedTalksRepository(Result.failure(RuntimeException("boom")))
 
