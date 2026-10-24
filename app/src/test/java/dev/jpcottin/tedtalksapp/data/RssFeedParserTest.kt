@@ -292,4 +292,40 @@ class RssFeedParserTest {
         assertEquals(1, talks.size)
         assertNull(talks[0].videoUrl)
     }
+
+    private fun feed(items: String) = "<rss><channel>$items</channel></rss>"
+
+    @Test
+    fun parse_itemsWithoutGuidOrLink_getDistinctIds() {
+        val talks = parseString(feed("<item><title>A</title></item><item><title>B</title></item>"))
+        assertEquals(2, talks.size)
+        assertEquals(2, talks.map { it.id }.toSet().size)
+        assertTrue(talks.none { it.id.isEmpty() })
+    }
+
+    @Test
+    fun parse_repeatedGuid_keepsOneItem() {
+        val talks = parseString(feed("<item><guid>g1</guid><title>A</title></item><item><guid>g1</guid><title>B</title></item>"))
+        assertEquals(1, talks.size)
+        assertEquals("A", talks[0].title)
+    }
+
+    @Test
+    fun parse_noAuthorNoSeparator_leavesSpeakerEmpty() {
+        val talk = parseString(feed("<item><title>Some Title</title></item>")).single()
+        assertEquals("Some Title", talk.title)
+        assertEquals("", talk.speaker)
+    }
+
+    @Test
+    fun parse_htmlDescription_decodesNumericAndNamedEntities() {
+        val talk = parseString(feed("<item><title>T</title><description><![CDATA[<p>Tom &amp; Jerry&#39;s &hellip; &#x27;fine&#x27;</p>]]></description></item>")).single()
+        assertEquals("Tom & Jerry's \u2026 'fine'", talk.description)
+    }
+
+    @Test
+    fun parse_htmlDescription_doesNotDoubleDecode() {
+        val talk = parseString(feed("<item><title>T</title><description><![CDATA[&amp;lt;b&amp;gt;]]></description></item>")).single()
+        assertEquals("&lt;b&gt;", talk.description)
+    }
 }
