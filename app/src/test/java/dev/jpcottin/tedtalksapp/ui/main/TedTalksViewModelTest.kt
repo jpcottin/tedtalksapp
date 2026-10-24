@@ -238,6 +238,19 @@ class TedTalksViewModelTest {
     }
 
     @Test
+    fun getExoPlayer_sameTalkAfterAPlaybackError_preparesAgain() = runTest {
+        val player = mockk<ExoPlayer>(relaxed = true)
+        every { player.playbackState } returns Player.STATE_IDLE   // where an error leaves the player
+        val viewModel = playerViewModel(player)
+        val context = mockk<Context>(relaxed = true)
+
+        viewModel.getExoPlayer(context, "https://cdn/a.mp4")
+        viewModel.getExoPlayer(context, "https://cdn/a.mp4")   // Play again after the error
+
+        verify(exactly = 2) { player.prepare() }
+    }
+
+    @Test
     fun getExoPlayer_sameTalkAfterItEnded_startsOver() = runTest {
         val player = mockk<ExoPlayer>(relaxed = true)
         every { player.playbackState } returns Player.STATE_ENDED

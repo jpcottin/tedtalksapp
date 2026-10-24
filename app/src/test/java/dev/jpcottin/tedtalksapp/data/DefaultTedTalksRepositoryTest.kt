@@ -10,6 +10,9 @@ import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
 import java.util.concurrent.TimeUnit
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.cancelAndJoin
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.runTest
 
 class DefaultTedTalksRepositoryTest {
@@ -48,6 +51,20 @@ class DefaultTedTalksRepositoryTest {
         assertEquals("12345", talks[0].id)
         assertEquals("This is what the future of media looks like", talks[0].title)
         assertEquals("Hamish McKenzie", talks[0].speaker)
+    }
+
+    @Test
+    fun fetchTalks_cancelled_abortsTheCallPromptly() = runTest {
+        server.enqueue(MockResponse().setSocketPolicy(SocketPolicy.NO_RESPONSE))
+        val job = launch(Dispatchers.IO) { repository.fetchTalks() }
+        server.takeRequest(2, TimeUnit.SECONDS)            // the request is on the wire
+
+        val started = System.nanoTime()
+        job.cancelAndJoin()
+
+        assertTrue("cancel took ${(System.nanoTime() - started) / 1_000_000} ms",
+            System.nanoTime() - started < 1_000_000_000L)
+        assertEquals(0, client.dispatcher.runningCallsCount())
     }
 
     @Test

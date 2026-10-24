@@ -7,6 +7,12 @@ import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
+import androidx.compose.ui.test.getBoundsInRoot
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.width
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.dp
+import org.junit.Assert.assertFalse
 import dev.jpcottin.tedtalksapp.data.TalkItem
 import org.junit.Rule
 import org.junit.Test
@@ -60,4 +66,22 @@ class TalkDetailPaneTest {
         composeTestRule.onNodeWithContentDescription("Back").performClick()
         assert(backed) { "Expected back callback to fire" }
     }
+
+    @Test
+    fun hero_longTitleDoesNotCoverThePlayButton() {
+        val longTitle = "What if the climate movement felt like a house party for everyone?"
+        composeTestRule.setContent {
+            Box(Modifier.width(360.dp)) {
+                TalkDetailPane(
+                    talk = talk.copy(title = longTitle, videoUrl = "https://example.com/v.mp4"),
+                    showBackButton = false, onBack = {},
+                )
+            }
+        }
+        val play = composeTestRule.onNodeWithContentDescription("Play video").getBoundsInRoot()
+        val title = composeTestRule.onNodeWithText(longTitle, substring = true).getBoundsInRoot()
+        val overlap = title.top < play.bottom && title.bottom > play.top
+        assertFalse("title $title covers the play button $play", overlap)
+    }
+
 }
