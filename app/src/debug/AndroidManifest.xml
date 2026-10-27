@@ -2,8 +2,11 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     package="dev.jpcottin.tedtalksapp">
     <application>
+        <!-- Hosts the pane tests; declares picture-in-picture like MainActivity so the
+             inline player can publish its PiP params from this activity too. -->
         <activity
             android:name=".TestActivity"
-            android:exported="true" />
+            android:exported="true"
+            android:supportsPictureInPicture="true" />
     </application>
 </manifest>
