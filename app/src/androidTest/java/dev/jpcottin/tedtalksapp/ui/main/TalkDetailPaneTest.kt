@@ -101,6 +101,31 @@ class TalkDetailPaneTest {
     }
 
     @Test
+    fun hero_playButtonStartsThePlayerWithTheBackButtonShown() {
+        // The single-pane layout overlays a back button on the hero. It used to
+        // sit inside a full-width app bar whose surface swallowed every tap on
+        // the play button beneath it.
+        val context = ApplicationProvider.getApplicationContext<Context>()
+        lateinit var player: ExoPlayer
+        composeTestRule.runOnUiThread { player = ExoPlayer.Builder(context).build() }
+        try {
+            composeTestRule.setContent {
+                TalkDetailPane(
+                    talk = talk.copy(videoUrl = "https://example.com/v.mp4"),
+                    showBackButton = true,
+                    onBack = {},
+                    getExoPlayer = { player },
+                )
+            }
+            composeTestRule.onNodeWithContentDescription("Play video").performClick()
+            composeTestRule.waitForIdle()
+            assertNotNull("tapping the hero play button should start the inline player", playerView())
+        } finally {
+            composeTestRule.runOnUiThread { player.release() }
+        }
+    }
+
+    @Test
     fun inlinePlayer_keepsItsViewAcrossAPostureSwitch() {
         // A half-opened foldable moves the video from the scrolling page to the
         // upper half of a split: the same PlayerView must move with it, not be

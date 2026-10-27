@@ -20,6 +20,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
+import androidx.compose.foundation.layout.systemBars
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.windowInsetsPadding
@@ -34,15 +35,12 @@ import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.movableContentOf
@@ -165,11 +163,10 @@ fun TalkDetailPane(
 
 /**
  * Hero image or inline player, drawn edge-to-edge under the status bar. The
- * overlaid M3 TopAppBar applies its own status-bar inset. With [fillParent]
+ * back button overlaid on it applies its own status-bar inset. With [fillParent]
  * the media fills whatever box it is given (tabletop upper half); otherwise it
  * keeps a 16:9 band at the top of the scrolling page.
  */
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun HeroArea(
     talk: TalkItem,
@@ -256,20 +253,25 @@ private fun HeroArea(
         }
 
         if (showBackButton) {
-            TopAppBar(
-                title = {},
-                navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "Back",
-                            tint = Color.White,
-                        )
-                    }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent),
-                modifier = Modifier.align(Alignment.TopStart),
-            )
+            // A bare button, not a TopAppBar: the app bar's full-width surface
+            // sat over the hero band and swallowed every tap meant for the play
+            // button underneath it. The offsets match where the app bar used to
+            // put its navigation icon.
+            IconButton(
+                onClick = onBack,
+                modifier = Modifier
+                    .align(Alignment.TopStart)
+                    .windowInsetsPadding(
+                        WindowInsets.systemBars.only(WindowInsetsSides.Horizontal + WindowInsetsSides.Top)
+                    )
+                    .padding(start = 4.dp, top = 8.dp),
+            ) {
+                Icon(
+                    imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                    contentDescription = "Back",
+                    tint = Color.White,
+                )
+            }
         }
     }
 }
