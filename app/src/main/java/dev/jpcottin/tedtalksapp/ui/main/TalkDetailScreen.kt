@@ -45,6 +45,7 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.movableContentOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -80,12 +81,25 @@ fun TalkDetailPane(
     val player = if (isPlayerVisible && talk.videoUrl != null && getExoPlayer != null)
         remember(talk.videoUrl) { getExoPlayer(talk.videoUrl) } else null
 
+    // One player view for every layout. The PiP window, the tabletop split and the
+    // scrolling page each place the video in a different slot of the tree, and a
+    // plain call there would inflate a fresh PlayerView on every switch: the player
+    // is torn off its surface and attached to a new one (a black frame mid-playback)
+    // and the view's fullscreen and focus state start over. Movable content moves
+    // the same node between the slots instead.
+    val playerContent: (@Composable (Modifier) -> Unit)? = if (player != null) {
+        remember(player) {
+            movableContentOf { mediaModifier: Modifier ->
+                VideoPlayerView(exoPlayer = player, modifier = mediaModifier)
+            }
+        }
+    } else null
+
     // In picture-in-picture the window is tiny: show only the video, full-bleed.
     val isInPip = rememberIsInPipMode()
-    if (isInPip && player != null) {
-        VideoPlayerView(
-            exoPlayer = player,
-            modifier = Modifier
+    if (isInPip && playerContent != null) {
+        playerContent(
+            Modifier
                 .fillMaxSize()
                 .background(Color.Black),
         )
@@ -107,7 +121,7 @@ fun TalkDetailPane(
                 onPlay = { isPlayerVisible = true },
                 showBackButton = showBackButton,
                 onBack = onBack,
-                player = player,
+                playerContent = playerContent,
                 fillParent = true,
                 modifier = Modifier
                     .fillMaxWidth()
@@ -137,7 +151,7 @@ fun TalkDetailPane(
             onPlay = { isPlayerVisible = true },
             showBackButton = showBackButton,
             onBack = onBack,
-            player = player,
+            playerContent = playerContent,
             fillParent = false,
             modifier = Modifier.fillMaxWidth(),
         )
@@ -163,8 +177,8 @@ private fun HeroArea(
     onPlay: () -> Unit,
     showBackButton: Boolean,
     onBack: () -> Unit,
-    /** The player to show, acquired once per playback by the pane; null while the hero image shows. */
-    player: ExoPlayer?,
+    /** The pane's single player view, given the media box to fill; null while the hero image shows. */
+    playerContent: (@Composable (Modifier) -> Unit)?,
     fillParent: Boolean,
     modifier: Modifier = Modifier,
 ) {
@@ -180,11 +194,8 @@ private fun HeroArea(
     }
 
     Box(modifier = modifier) {
-        if (player != null) {
-            VideoPlayerView(
-                exoPlayer = player,
-                modifier = mediaModifier,
-            )
+        if (playerContent != null) {
+            playerContent(mediaModifier)
         } else {
             Box(modifier = mediaModifier) {
                 AsyncImage(
