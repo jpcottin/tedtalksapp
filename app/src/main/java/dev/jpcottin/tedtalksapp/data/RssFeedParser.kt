@@ -4,6 +4,7 @@ import org.xmlpull.v1.XmlPullParser
 import org.xmlpull.v1.XmlPullParserException
 import org.xmlpull.v1.XmlPullParserFactory
 import java.io.InputStream
+import java.text.DateFormat
 import java.text.SimpleDateFormat
 import java.util.Locale
 
@@ -168,11 +169,14 @@ class RssFeedParser {
         )
     }
 
+    // The feed's RFC 822 date, shown the way the device's locale writes a date:
+    // "May 21, 2025" in the US, "21 mai 2025" in France. A fixed "MMM d, yyyy"
+    // pattern used to put a translated month name in the American order.
     private fun formatDate(dateStr: String): String {
         if (dateStr.isBlank()) return ""
         return try {
             val input = SimpleDateFormat("EEE, dd MMM yyyy HH:mm:ss Z", Locale.ENGLISH)
-            val output = SimpleDateFormat("MMM d, yyyy", Locale.getDefault())
+            val output = DateFormat.getDateInstance(DateFormat.MEDIUM, Locale.getDefault())
             output.format(input.parse(dateStr) ?: return dateStr)
         } catch (_: Exception) {
             dateStr

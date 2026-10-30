@@ -203,6 +203,39 @@ class RssFeedParserTest {
         assertEquals("This is a bold description.  Also with some & stuff.", talks[0].description)
     }
 
+    private fun pubDateOf(raw: String, locale: Locale): String {
+        Locale.setDefault(locale)
+        return parseString(
+            """
+            <rss version="2.0">
+                <channel>
+                    <item>
+                        <title>Title</title>
+                        <pubDate>$raw</pubDate>
+                    </item>
+                </channel>
+            </rss>
+            """.trimIndent(),
+        ).single().pubDate
+    }
+
+    @Test
+    fun parse_pubDate_isWrittenInTheDeviceLocaleOrder() {
+        val raw = "Wed, 21 May 2025 14:48:48 +0000"
+        assertEquals("May 21, 2025", pubDateOf(raw, Locale.US))
+        assertEquals("21 May 2025", pubDateOf(raw, Locale.UK))
+        assertEquals("21 mai 2025", pubDateOf(raw, Locale.FRANCE))
+        assertEquals("21.05.2025", pubDateOf(raw, Locale.GERMANY))
+    }
+
+    @Test
+    fun parse_pubDate_isParsedInEnglishWhateverTheDeviceLocale() {
+        // The feed names its months in English; the device's language must not
+        // make "May" unreadable (a French parser would expect "mai").
+        assertEquals("21 mai 2025", pubDateOf("Wed, 21 May 2025 14:48:48 +0000", Locale.FRANCE))
+        assertEquals("3 oct. 2025", pubDateOf("Fri, 03 Oct 2025 09:00:00 +0000", Locale.FRANCE))
+    }
+
     @Test
     fun parse_invalidDate_returnsOriginalString() {
         val xml = """
