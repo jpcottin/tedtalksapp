@@ -48,6 +48,7 @@ fun MainNavigation(viewModel: TedTalksViewModel) {
     val selectedTalkId by viewModel.selectedTalkId.collectAsStateWithLifecycle()
     val isRefreshing by viewModel.isRefreshing.collectAsStateWithLifecycle()
     val refreshError by viewModel.refreshError.collectAsStateWithLifecycle()
+    val includeAudio by viewModel.includeAudio.collectAsStateWithLifecycle()
 
     // In a two-pane scene ListDetailSceneStrategy reports no previous entries, which
     // disables NavDisplay's built-in back handling — BACK would close the activity
@@ -84,6 +85,8 @@ fun MainNavigation(viewModel: TedTalksViewModel) {
                     onRefresh = viewModel::loadTalks,
                     refreshError = refreshError,
                     onRefreshErrorShown = viewModel::clearRefreshError,
+                    includeAudio = includeAudio,
+                    onIncludeAudioChange = viewModel::setIncludeAudio,
                 )
             }
             entry<TalkDetail>(

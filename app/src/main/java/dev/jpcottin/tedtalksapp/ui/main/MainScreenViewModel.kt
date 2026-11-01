@@ -10,7 +10,9 @@ import androidx.media3.common.MediaItem
 import androidx.media3.common.Player
 import androidx.media3.exoplayer.ExoPlayer
 import dev.jpcottin.tedtalksapp.data.DefaultTedTalksRepository
+import dev.jpcottin.tedtalksapp.data.InMemoryTalkSourceSettings
 import dev.jpcottin.tedtalksapp.data.TalkItem
+import dev.jpcottin.tedtalksapp.data.TalkSourceSettings
 import dev.jpcottin.tedtalksapp.data.TedTalksRepository
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -20,8 +22,13 @@ import kotlinx.coroutines.launch
 
 class TedTalksViewModel(
     private val repository: TedTalksRepository = DefaultTedTalksRepository(),
+    private val sourceSettings: TalkSourceSettings = InMemoryTalkSourceSettings(),
     private val playerFactory: (Context) -> ExoPlayer = ::defaultPlayerFactory,
 ) : ViewModel() {
+
+    // Whether the list adds the live feed's audio talks to the bundled videos.
+    private val _includeAudio = MutableStateFlow(sourceSettings.includeAudio)
+    val includeAudio: StateFlow<Boolean> = _includeAudio.asStateFlow()
 
     private val _uiState = MutableStateFlow<TedTalksUiState>(TedTalksUiState.Loading)
     val uiState: StateFlow<TedTalksUiState> = _uiState.asStateFlow()
@@ -60,7 +67,7 @@ class TedTalksViewModel(
             // reported through refreshError.
             val hasTalks = _uiState.value is TedTalksUiState.Success
             if (hasTalks) _isRefreshing.value = true else _uiState.value = TedTalksUiState.Loading
-            repository.fetchTalks()
+            repository.fetchTalks(includeAudio = _includeAudio.value)
                 .onSuccess { talks ->
                     // A feed with no talks is a failure the user can act on (Try again), not
                     // a blank grid; an empty refresh keeps the list and reports instead.
@@ -81,6 +88,17 @@ class TedTalksViewModel(
 
     fun clearRefreshError() {
         _refreshError.value = null
+    }
+
+    /** Adds the audio talks to the list, or takes them out; remembered for the next start. */
+    fun setIncludeAudio(include: Boolean) {
+        if (_includeAudio.value == include) return
+        _includeAudio.value = include
+        sourceSettings.includeAudio = include
+        // A fetch for the other set of sources is moot: drop it and fetch this one.
+        loadJob?.cancel()
+        _isRefreshing.value = false
+        loadTalks()
     }
 
     fun selectTalk(id: String) {
@@ -151,11 +169,14 @@ class TedTalksViewModel(
                 .setHandleAudioBecomingNoisy(true)
                 .build()
 
-        fun factory(repository: TedTalksRepository): ViewModelProvider.Factory =
+        fun factory(
+            repository: TedTalksRepository,
+            sourceSettings: TalkSourceSettings = InMemoryTalkSourceSettings(),
+        ): ViewModelProvider.Factory =
             object : ViewModelProvider.Factory {
                 @Suppress("UNCHECKED_CAST")
                 override fun <T : ViewModel> create(modelClass: Class<T>): T =
-                    TedTalksViewModel(repository) as T
+                    TedTalksViewModel(repository, sourceSettings = sourceSettings) as T
             }
     }
 }

@@ -281,6 +281,18 @@ class RssFeedParserTest {
     }
 
     @Test
+    fun parse_pubDate_keepsTheInstantForOrdering() {
+        val talks = parseString(feed("""
+            <item><title>A</title><guid>a</guid><pubDate>Sun, 01 Nov 2026 07:00:00 GMT</pubDate></item>
+            <item><title>B</title><guid>b</guid><pubDate>Wed, 21 May 2025 14:48:48 +0000</pubDate></item>
+            <item><title>C</title><guid>c</guid><pubDate>no date</pubDate></item>
+        """))
+        assertEquals(1793516400000L, talks[0].publishedMillis)
+        assertEquals(1747838928000L, talks[1].publishedMillis)
+        assertEquals(0L, talks[2].publishedMillis)
+    }
+
+    @Test
     fun parse_invalidDate_returnsOriginalString() {
         val xml = """
             <rss version="2.0">

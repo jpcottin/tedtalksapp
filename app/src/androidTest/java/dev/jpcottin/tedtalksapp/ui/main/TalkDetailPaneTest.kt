@@ -18,6 +18,9 @@ import androidx.test.core.app.ApplicationProvider
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertSame
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.assertTextContains
+import androidx.compose.ui.test.onAllNodesWithTag
+import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
@@ -29,6 +32,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
 import dev.jpcottin.tedtalksapp.data.TalkItem
 import org.junit.Rule
 import org.junit.Test
@@ -112,6 +116,40 @@ class TalkDetailPaneTest {
         }
         composeTestRule.onNodeWithContentDescription("Play").assertIsDisplayed()
         composeTestRule.onNodeWithText("Listen").performScrollTo().assertIsDisplayed()
+    }
+
+    @Test
+    fun unplayableMedia_explainsItselfAndOffersToTryAgain() {
+        // A host that does not resolve: the player fails at once, and the pane says
+        // why in words instead of leaving a black box.
+        val context = ApplicationProvider.getApplicationContext<Context>()
+        lateinit var player: ExoPlayer
+        composeTestRule.runOnUiThread { player = ExoPlayer.Builder(context).build() }
+        try {
+            composeTestRule.setContent {
+                TalkDetailPane(
+                    talk = talk.copy(mediaUrl = "https://nonexistent.invalid/talk.mp4"),
+                    showBackButton = false,
+                    onBack = {},
+                    getExoPlayer = { url ->
+                        player.setMediaItem(androidx.media3.common.MediaItem.fromUri(url))
+                        player.prepare()
+                        player.playWhenReady = true
+                        player
+                    },
+                )
+            }
+            composeTestRule.onNodeWithContentDescription("Play").performClick()
+            composeTestRule.waitUntil(timeoutMillis = 20_000) {
+                composeTestRule.onAllNodesWithTag("playback_error").fetchSemanticsNodes().isNotEmpty()
+            }
+            composeTestRule.onNodeWithTag("playback_error").performScrollTo()
+                .assertTextContains("could not be reached", substring = true)
+            composeTestRule.onNodeWithText("Try again").performScrollTo().assertIsDisplayed()
+            assertNull("the failed player should have left the screen", playerView())
+        } finally {
+            composeTestRule.runOnUiThread { player.release() }
+        }
     }
 
     @Test

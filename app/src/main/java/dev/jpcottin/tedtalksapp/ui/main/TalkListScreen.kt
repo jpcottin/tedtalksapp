@@ -27,11 +27,14 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.style.rememberUpdatedStyleState
 import androidx.compose.foundation.style.styleable
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Headphones
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilterChip
+import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
@@ -52,10 +55,14 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.focusRestorer
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -79,6 +86,10 @@ fun TalkListPane(
     onRefresh: () -> Unit = onRetry,
     refreshError: String? = null,
     onRefreshErrorShown: () -> Unit = {},
+    /** Whether the live feed's audio talks are listed with the videos. */
+    includeAudio: Boolean = false,
+    /** The toggle for it in the app bar; none when null (previews, a fixed list). */
+    onIncludeAudioChange: ((Boolean) -> Unit)? = null,
 ) {
     // A reload that fails behind an existing list is only worth a snackbar:
     // the stale talks stay on screen and are still usable.
@@ -95,6 +106,10 @@ fun TalkListPane(
     // The app bar slides away as the list scrolls down and returns as soon as
     // the user scrolls up, giving the grid the full height on small windows.
     val scrollBehavior = TopAppBarDefaults.enterAlwaysScrollBehavior()
+    // The first row of the grid: where focus lands when the list appears on a
+    // D-pad device, and where DOWN from the app bar's chip sends it (the search
+    // from the bar into the grid does not find the rows by itself on a TV).
+    val firstItemFocusRequester = remember { FocusRequester() }
     Scaffold(
         modifier = modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
         contentWindowInsets = WindowInsets.safeDrawing,
@@ -108,6 +123,28 @@ fun TalkListPane(
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.primary,
                     )
+                },
+                actions = {
+                    // Videos only by default; the chip adds the feed's audio talks.
+                    if (onIncludeAudioChange != null) {
+                        FilterChip(
+                            selected = includeAudio,
+                            onClick = { onIncludeAudioChange(!includeAudio) },
+                            label = { Text("Audio") },
+                            leadingIcon = {
+                                Icon(
+                                    imageVector = Icons.Default.Headphones,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(FilterChipDefaults.IconSize),
+                                )
+                            },
+                            modifier = Modifier
+                                .padding(end = 8.dp)
+                                .focusProperties { down = firstItemFocusRequester }
+                                .semantics { contentDescription = "Include audio talks" }
+                                .testTag("audio_toggle"),
+                        )
+                    }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = MaterialTheme.colorScheme.background,
@@ -131,6 +168,7 @@ fun TalkListPane(
                 contentPadding = innerPadding,
                 isRefreshing = isRefreshing,
                 onRefresh = onRefresh,
+                firstItemFocusRequester = firstItemFocusRequester,
             )
         }
     }
@@ -179,12 +217,11 @@ private fun TalkList(
     contentPadding: PaddingValues,
     isRefreshing: Boolean,
     onRefresh: () -> Unit,
+    firstItemFocusRequester: FocusRequester,
 ) {
     // Without a pointing device (TV remote, keyboard-only desktop) focus is the
     // only cursor, so the first item takes it as soon as the list appears.
     val isDpadOnly = hasNoPointer()
-
-    val firstItemFocusRequester = remember { FocusRequester() }
 
     LaunchedEffect(isDpadOnly, talks.isNotEmpty()) {
         if (isDpadOnly && talks.isNotEmpty()) {
@@ -192,24 +229,7 @@ private fun TalkList(
         }
     }
 
-    // The grid scrolls under the app bar, so the pull indicator is pushed down
-    // by the same top inset or it would spin behind the bar.
-    val pullState = rememberPullToRefreshState()
-    PullToRefreshBox(
-        isRefreshing = isRefreshing,
-        onRefresh = onRefresh,
-        state = pullState,
-        modifier = Modifier.fillMaxSize(),
-        indicator = {
-            PullToRefreshDefaults.Indicator(
-                state = pullState,
-                isRefreshing = isRefreshing,
-                modifier = Modifier
-                    .align(Alignment.TopCenter)
-                    .padding(top = contentPadding.calculateTopPadding()),
-            )
-        },
-    ) {
+    val grid: @Composable () -> Unit = {
         // Adaptive cells: a single column on a phone-width list pane, multiple columns
         // when the list pane is wider (e.g. tablet primary pane, desktop, TV).
         LazyVerticalGrid(
@@ -234,6 +254,35 @@ private fun TalkList(
                 )
             }
         }
+    }
+
+    if (isDpadOnly) {
+        // No pointer, no pull: a TV refreshes through the chip and the retry
+        // button. The pull box also misread the first row's focus request (a
+        // scroll to bring it into view) as a pull and left its arrow on screen.
+        Box(Modifier.fillMaxSize()) { grid() }
+        return
+    }
+
+    // The grid scrolls under the app bar, so the pull indicator is pushed down
+    // by the same top inset or it would spin behind the bar.
+    val pullState = rememberPullToRefreshState()
+    PullToRefreshBox(
+        isRefreshing = isRefreshing,
+        onRefresh = onRefresh,
+        state = pullState,
+        modifier = Modifier.fillMaxSize(),
+        indicator = {
+            PullToRefreshDefaults.Indicator(
+                state = pullState,
+                isRefreshing = isRefreshing,
+                modifier = Modifier
+                    .align(Alignment.TopCenter)
+                    .padding(top = contentPadding.calculateTopPadding()),
+            )
+        },
+    ) {
+        grid()
     }
 }
 
@@ -269,14 +318,25 @@ private fun TalkListItem(
                 contentScale = ContentScale.Crop,
                 modifier = Modifier.fillMaxSize(),
             )
-            Box(
+            Row(
                 modifier = Modifier
                     .align(Alignment.BottomEnd)
                     .padding(4.dp)
                     .clip(RoundedCornerShape(4.dp))
                     .background(Color.Black.copy(alpha = 0.7f))
                     .padding(horizontal = 4.dp, vertical = 2.dp),
+                verticalAlignment = Alignment.CenterVertically,
             ) {
+                // An audio talk is told apart in the pill that every row has.
+                if (talk.isAudio) {
+                    Icon(
+                        imageVector = Icons.Default.Headphones,
+                        contentDescription = "Audio",
+                        tint = Color.White,
+                        modifier = Modifier.size(12.dp),
+                    )
+                    Spacer(modifier = Modifier.width(3.dp))
+                }
                 Text(
                     text = talk.duration,
                     style = MaterialTheme.typography.labelSmall,
