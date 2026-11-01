@@ -1,6 +1,7 @@
 package dev.jpcottin.tedtalksapp.data
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
@@ -53,7 +54,7 @@ class RssFeedParserTest {
         assertEquals("May 21, 2025", talk.pubDate)
         assertEquals("10:58", talk.duration)
         assertEquals("https://example.com/image.jpg", talk.imageUrl)
-        assertEquals("https://example.com/video.mp4", talk.videoUrl)
+        assertEquals("https://example.com/video.mp4", talk.mediaUrl)
     }
 
     private fun durationOf(raw: String): String = parseString(
@@ -128,18 +129,55 @@ class RssFeedParserTest {
     }
 
     @Test
-    fun parse_video_onlyMp4MediaContentWithAUrlIsUsed() {
+    fun parse_video_anMp4WithAUrlWinsOverAnMp3() {
         val talk = parseString(itemWith("""
             <media:content url="https://example.com/audio.mp3" type="audio/mpeg"/>
             <media:content type="video/mp4"/>
             <media:content url="https://example.com/talk.mp4" type="video/mp4"/>
         """)).single()
-        assertEquals("https://example.com/talk.mp4", talk.videoUrl)
+        assertEquals("https://example.com/talk.mp4", talk.mediaUrl)
+        assertFalse(talk.isAudio)
 
-        val none = parseString(itemWith("""
-            <media:content url="https://example.com/audio.mp3" type="audio/mpeg"/>
+        // Whatever the order of the two.
+        val mp3Last = parseString(itemWith("""
+            <enclosure url="https://example.com/talk.mp4" type="video/mp4" length="1"/>
+            <enclosure url="https://example.com/audio.mp3" type="audio/mpeg" length="1"/>
         """)).single()
-        assertTrue(none.videoUrl.isNullOrEmpty())
+        assertEquals("https://example.com/talk.mp4", mp3Last.mediaUrl)
+        assertFalse(mp3Last.isAudio)
+    }
+
+    @Test
+    fun parse_audio_anMp3EnclosureIsTheMediaWhenThereIsNoVideo() {
+        // The podcast feed carries each talk as an mp3 enclosure and nothing else.
+        val talk = parseString(itemWith("""
+            <enclosure length="39657639" type="audio/mpeg" url="https://example.com/media.mp3"/>
+        """)).single()
+        assertEquals("https://example.com/media.mp3", talk.mediaUrl)
+        assertTrue(talk.isAudio)
+
+        val mediaContent = parseString(itemWith("""
+            <media:content url="https://example.com/audio.mp3" type="audio/mp3"/>
+        """)).single()
+        assertEquals("https://example.com/audio.mp3", mediaContent.mediaUrl)
+        assertTrue(mediaContent.isAudio)
+
+        val firstOfTwo = parseString(itemWith("""
+            <enclosure url="https://example.com/a.mp3" type="audio/mpeg"/>
+            <enclosure url="https://example.com/b.mp3" type="audio/mpeg"/>
+        """)).single()
+        assertEquals("https://example.com/a.mp3", firstOfTwo.mediaUrl)
+    }
+
+    @Test
+    fun parse_media_otherTypesAndEmptyUrlsAreIgnored() {
+        val talk = parseString(itemWith("""
+            <enclosure url="https://example.com/cover.jpg" type="image/jpeg"/>
+            <enclosure url="" type="audio/mpeg"/>
+            <media:content url="https://example.com/talk.webm" type="video/webm"/>
+        """)).single()
+        assertNull(talk.mediaUrl)
+        assertFalse(talk.isAudio)
     }
 
     @Test
@@ -151,7 +189,7 @@ class RssFeedParserTest {
             </media:group>
         """)).single()
         assertEquals("https://example.com/thumb.jpg", talk.imageUrl)
-        assertEquals("https://example.com/talk.mp4", talk.videoUrl)
+        assertEquals("https://example.com/talk.mp4", talk.mediaUrl)
     }
 
     @Test
@@ -237,6 +275,12 @@ class RssFeedParserTest {
     }
 
     @Test
+    fun parse_pubDate_acceptsANamedZone() {
+        // The podcast feed writes "GMT" where the video feed wrote "+0000".
+        assertEquals("Nov 1, 2026", pubDateOf("Sun, 01 Nov 2026 07:00:00 GMT", Locale.US))
+    }
+
+    @Test
     fun parse_invalidDate_returnsOriginalString() {
         val xml = """
             <rss version="2.0">
@@ -254,12 +298,12 @@ class RssFeedParserTest {
     }
 
     @Test
-    fun parse_missingAuthor_splitsTitleProperly() {
+    fun parse_missingAuthor_readsTheTitleAsTitleThenSpeaker() {
         val xml = """
             <rss version="2.0">
                 <channel>
                     <item>
-                        <title>Bill Gates | The future of computing</title>
+                        <title>The future of computing | Bill Gates</title>
                     </item>
                 </channel>
             </rss>
@@ -268,6 +312,43 @@ class RssFeedParserTest {
         assertEquals(1, talks.size)
         assertEquals("Bill Gates", talks[0].speaker)
         assertEquals("The future of computing", talks[0].title)
+    }
+
+    @Test
+    fun parse_authorThatIsTheChannels_isNotTheSpeaker() {
+        // The podcast feed credits every episode to its publisher; the speaker
+        // is at the end of the title, sometimes with a note that belongs to the talk.
+        val talks = parseString(
+            """
+            <rss xmlns:itunes="http://www.itunes.com/dtds/podcast-1.0.dtd">
+                <channel>
+                    <title>TED Talks Daily</title>
+                    <itunes:author>TED</itunes:author>
+                    <item>
+                        <title>What crows teach us about death | Kaeli Swift (re-release)</title>
+                        <itunes:author>TED</itunes:author>
+                        <guid>1</guid>
+                    </item>
+                    <item>
+                        <title>Zombie roaches and other parasite tales | Ed Yong</title>
+                        <itunes:author>ted</itunes:author>
+                        <guid>2</guid>
+                    </item>
+                    <item>
+                        <title>A talk with no speaker named</title>
+                        <itunes:author>TED</itunes:author>
+                        <guid>3</guid>
+                    </item>
+                </channel>
+            </rss>
+            """.trimIndent()
+        )
+        assertEquals("Kaeli Swift", talks[0].speaker)
+        assertEquals("What crows teach us about death (re-release)", talks[0].title)
+        assertEquals("Ed Yong", talks[1].speaker)
+        assertEquals("Zombie roaches and other parasite tales", talks[1].title)
+        assertEquals("", talks[2].speaker)
+        assertEquals("A talk with no speaker named", talks[2].title)
     }
 
     @Test
@@ -310,20 +391,20 @@ class RssFeedParserTest {
     }
 
     @Test
-    fun parse_noVideoContent_returnsNullVideoUrl() {
+    fun parse_noMedia_returnsNullMediaUrl() {
         val xml = """
-            <rss xmlns:media="http://search.yahoo.com/mrss/" version="2.0">
+            <rss version="2.0">
                 <channel>
                     <item>
                         <title>Title</title>
-                        <media:content url="https://example.com/audio.mp3" type="audio/mp3"/>
+                        <link>https://example.com</link>
                     </item>
                 </channel>
             </rss>
         """.trimIndent()
         val talks = parseString(xml)
         assertEquals(1, talks.size)
-        assertNull(talks[0].videoUrl)
+        assertNull(talks[0].mediaUrl)
     }
 
     private fun feed(items: String) = "<rss><channel>$items</channel></rss>"

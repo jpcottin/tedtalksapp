@@ -38,7 +38,7 @@ class TedTalksViewModel(
     val refreshError: StateFlow<String?> = _refreshError.asStateFlow()
 
     private var exoPlayer: ExoPlayer? = null
-    private var currentVideoUrl: String? = null
+    private var currentMediaUrl: String? = null
 
     // Last playback position per video URL, so reopening a talk resumes where it left off.
     private val playbackPositions = mutableMapOf<String, Long>()
@@ -96,15 +96,15 @@ class TedTalksViewModel(
         exoPlayer?.pause()
     }
 
-    fun getExoPlayer(context: Context, videoUrl: String): ExoPlayer {
+    fun getExoPlayer(context: Context, mediaUrl: String): ExoPlayer {
         val player = exoPlayer ?: playerFactory(context).also {
             exoPlayer = it
         }
-        if (currentVideoUrl != videoUrl) {
+        if (currentMediaUrl != mediaUrl) {
             savePlaybackPosition(player)
-            currentVideoUrl = videoUrl
-            player.setMediaItem(MediaItem.fromUri(videoUrl))
-            playbackPositions[videoUrl]?.let { player.seekTo(it) }
+            currentMediaUrl = mediaUrl
+            player.setMediaItem(MediaItem.fromUri(mediaUrl))
+            playbackPositions[mediaUrl]?.let { player.seekTo(it) }
             player.prepare()
         } else if (player.playbackState == Player.STATE_ENDED) {
             // The same talk again after it ran to its end: start it over.
@@ -121,7 +121,7 @@ class TedTalksViewModel(
     }
 
     private fun savePlaybackPosition(player: ExoPlayer) {
-        val url = currentVideoUrl ?: return
+        val url = currentMediaUrl ?: return
         if (player.playbackState == Player.STATE_ENDED) {
             // Finished talks restart from the beginning next time.
             playbackPositions.remove(url)

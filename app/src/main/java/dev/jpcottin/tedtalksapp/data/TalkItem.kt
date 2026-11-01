@@ -9,5 +9,7 @@ data class TalkItem(
     val duration: String,
     val imageUrl: String,
     val link: String,
-    val videoUrl: String?,
+    /** The talk itself: an mp4 video, or an mp3 when the feed carries audio only. */
+    val mediaUrl: String?,
+    val isAudio: Boolean = false,
 )

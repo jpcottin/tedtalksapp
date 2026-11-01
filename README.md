@@ -40,13 +40,13 @@ All emulator-runner legs use full diagnostics (`-verbose -show-kernel -debug-met
 
 </details>
 
-A high-fidelity Android demonstration app centered around the official [TED Talks HD RSS feed](https://feeds.feedburner.com/TedtalksHD). This project serves as a reference implementation for building deeply adaptive UIs that span the entire Android ecosystem—from compact mobile screens and foldables to large-screen spatial environments like Android XR and lean-back experiences on Google TV.
+A high-fidelity Android demonstration app centered around the official [TED Talks RSS feed](https://feeds.feedburner.com/TedtalksHD). This project serves as a reference implementation for building deeply adaptive UIs that span the entire Android ecosystem—from compact mobile screens and foldables to large-screen spatial environments like Android XR and lean-back experiences on Google TV.
 
-> **Note: the feed is frozen.** The HD video feed stopped updating on May 21, 2025. Its FeedBurner origin (a `pa.tedcdn.com` URL) now returns 404, and FeedBurner keeps serving the last cached copy. TED's listed feeds now redirect to an audio-only Acast feed for *TED Talks Daily* (mp3 enclosures, no speaker field, one shared cover image), which does not fit a video showcase. The app keeps the frozen HD feed on purpose: its 148 items are stable demo data with thumbnails, speakers, and mp4 URLs. Checked October 2026.
+> **Note: the feed changed (seen on November 1, 2026).** The HD video feed had been frozen since May 21, 2025 (148 talks with mp4 videos, served from FeedBurner's cache after its origin went away). That address now relays TED's *TED Talks Daily* podcast from Acast: about 2,850 episodes back to 2017, each an mp3 enclosure with its own cover art, the title written as `Talk title | Speaker`, and `itunes:author` set to the publisher ("TED") rather than the speaker. The app plays whatever the feed carries: an mp4 when there is one, else the mp3, with the cover shown in the player. The parser reads the speaker from the title when the author is the channel's own, and keeps an mp4 ahead of an mp3 should the video feed ever come back.
 
 ## 🚀 Key Objectives
 
-- **Live Data Integration:** Fetching and parsing of the TED Talks HD RSS feed (see the frozen-feed note above).
+- **Live Data Integration:** Fetching and parsing of the TED Talks RSS feed, video or audio (see the feed note above).
 - **Adaptive Layout Excellence:** A single codebase supports radically different form factors using Jetpack Compose's latest adaptive APIs.
 - **Cross-Platform Consistency:** High-quality experience on Phone, Tablet, Foldable, TV, and XR.
 - **Adaptive Navigation:** Uses **Navigation 3** with `ListDetailSceneStrategy` so the list/detail layout collapses to a single pane on phones and expands to side-by-side panes on foldables, tablets, and XR. Each pane is its own back-stack entry rather than a managed child of a scaffold.
@@ -57,7 +57,7 @@ A high-fidelity Android demonstration app centered around the official [TED Talk
     - **Mobile/Foldable:** Responsive layout that adapts to posture changes (e.g., table-top mode).
     - **Android TV:** Optimized D-pad navigation, focus management, and overscan-safe margins.
     - **Android XR:** Leverages adaptive primitives for spatial computing environments.
-- **Video Playback:** High-performance playback using Media3 ExoPlayer with seamless transitions to fullscreen, picture-in-picture when leaving the app mid-playback, per-talk resume positions, and audio focus handling.
+- **Media Playback:** High-performance playback using Media3 ExoPlayer, video or audio with its cover art, with seamless transitions to fullscreen, picture-in-picture when leaving the app mid-playback, per-talk resume positions, and audio focus handling.
 - **Modern UI:** Built entirely with Material 3 and a custom dark theme.
 
 ## 🛠 Tech Stack
@@ -114,8 +114,9 @@ The list row applies both with `Modifier.styleable(styleState, focusRing, talkLi
 - `TalkDetailPane`'s hero is intentionally edge-to-edge; the M3 `TopAppBar` overlay applies its own status-bar inset and the text body underneath applies `WindowInsets.safeDrawing.only(Horizontal + Bottom)`.
 - The fullscreen video `Dialog` uses `decorFitsSystemWindows = false` and hides the system bars while playing.
 
-### Video playback
+### Media playback
 
+- **Audio talks** — a talk the feed carries as an mp3 goes through the same `ExoPlayer` and `PlayerView` as a video. `VideoPlayerView` takes the talk's cover art as the view's default artwork (loaded with Coil, `ARTWORK_DISPLAY_MODE_FILL`), which `PlayerView` shows by itself whenever the media has no video track, inline, fullscreen and in the picture-in-picture window alike; the screen is not kept awake for it. The body's button reads *Listen* instead of *Play video*.
 - **Picture-in-picture** — `PipSupport.kt` keeps the activity's PiP params in sync with playback: on Android 12+ it uses `setAutoEnterEnabled` so leaving the app during playback enters PiP with a smooth animation (source rect hint fed from the player's on-screen bounds); on Android 8–11 it falls back to entering on the user-leave hint. While in PiP, `TalkDetailPane` renders only the video full-bleed with controls hidden, and the usual pause-on-`ON_PAUSE` is skipped when the pause is caused by entering PiP. The adaptive scaffold collapses to a single pane automatically inside the tiny PiP window.
 - **Resume positions** — `TedTalksViewModel` keeps a per-URL playback position map; switching back to a talk seeks to where it left off (`setMediaItem` → `seekTo` → `prepare`). Talks that played to the end restart from the beginning.
 - **One player view across layouts** — the scrolling page, the tabletop split and the picture-in-picture window each place the video in a different part of the tree. `TalkDetailPane` wraps `VideoPlayerView` in `movableContentOf`, so a layout switch moves the existing `PlayerView` node instead of inflating a new one: the player keeps its surface (no black frame mid-playback) and the view keeps its fullscreen and focus state.
@@ -151,8 +152,8 @@ The repository is wired for constructor injection, so tests can pass a fake with
 
 | Type | Source set | Command | What it covers |
 |------|-----------|---------|----------------|
-| Unit tests | `src/test/` | `./gradlew :app:testDebugUnitTest` | `RssFeedParser` parsing edge cases, `DefaultTedTalksRepository` HTTP behavior via MockWebServer, and `TedTalksViewModel` state machine (loading / success / error / retry / selection) and playback-position bookkeeping (resume / restart-after-finish) and player lifecycle (one player per view model, paused on deselect, released when the owner is cleared) against a mocked `ExoPlayer`; feed image precedence and video selection; the picture-in-picture aspect clamp. |
-| Compose UI tests | `src/androidTest/` | `./gradlew :app:connectedDebugAndroidTest` | `TalkListPane`, `TalkDetailPane`, and the full `MainNavigation` graph (including a back-from-detail regression guard for the two-pane back fix, a check that the inline `PlayerView` survives a posture switch to tabletop, and a tap on the hero play button with the back button overlaid on it) against a small in-test `TedTalksRepository` fake that serves a fixed talk list. Pane assertions scroll to off-screen nodes so they pass on TV/wide viewports too. |
+| Unit tests | `src/test/` | `./gradlew :app:testDebugUnitTest` | `RssFeedParser` parsing edge cases, `DefaultTedTalksRepository` HTTP behavior via MockWebServer, and `TedTalksViewModel` state machine (loading / success / error / retry / selection) and playback-position bookkeeping (resume / restart-after-finish) and player lifecycle (one player per view model, paused on deselect, released when the owner is cleared) against a mocked `ExoPlayer`; feed image precedence and media selection (an mp4 from `media:content` or an `enclosure` ahead of an mp3, other types ignored), the speaker read from the title when the author is the channel's own; the picture-in-picture aspect clamp. |
+| Compose UI tests | `src/androidTest/` | `./gradlew :app:connectedDebugAndroidTest` | `TalkListPane`, `TalkDetailPane`, and the full `MainNavigation` graph (including a back-from-detail regression guard for the two-pane back fix, a check that the inline `PlayerView` survives a posture switch to tabletop, a tap on the hero play button with the back button overlaid on it, and an audio talk offering Play and Listen) against a small in-test `TedTalksRepository` fake that serves a fixed talk list. Pane assertions scroll to off-screen nodes so they pass on TV/wide viewports too. |
 | Screenshot tests | `src/screenshotTest/` | `./gradlew :app:updateDebugScreenshotTest` (record) / `./gradlew :app:validateDebugScreenshotTest` (verify) | Curated `@PreviewTest` previews: `TalkListPane` loading and error states plus its success state on phone, foldable and tablet; `TalkDetailPane` on phone (light and dark), on tablet, and in the tabletop posture (produced by overriding `LocalUiMediaScope` the way the MediaQuery docs recommend for previews); and `EmptyDetailPlaceholder`. Uses the experimental [Compose Preview Screenshot Testing tool](https://developer.android.com/studio/preview/compose-screenshot-testing). |
 
 Compose `@Preview`s in `src/main/` (e.g. `TalkListPanePreview`) remain for design-time use in Android Studio and are tagged with a `FormFactorPreviews` multi-preview annotation.

@@ -46,7 +46,7 @@ class TalkDetailPaneTest {
         duration = "5:00",
         imageUrl = "",
         link = "https://ted.com/x",
-        videoUrl = null,
+        mediaUrl = null,
     )
 
     @Test
@@ -89,15 +89,29 @@ class TalkDetailPaneTest {
         composeTestRule.setContent {
             Box(Modifier.width(360.dp)) {
                 TalkDetailPane(
-                    talk = talk.copy(title = longTitle, videoUrl = "https://example.com/v.mp4"),
+                    talk = talk.copy(title = longTitle, mediaUrl = "https://example.com/v.mp4"),
                     showBackButton = false, onBack = {},
                 )
             }
         }
-        val play = composeTestRule.onNodeWithContentDescription("Play video").getBoundsInRoot()
+        val play = composeTestRule.onNodeWithContentDescription("Play").getBoundsInRoot()
         val title = composeTestRule.onNodeWithText(longTitle, substring = true).getBoundsInRoot()
         val overlap = title.top < play.bottom && title.bottom > play.top
         assertFalse("title $title covers the play button $play", overlap)
+    }
+
+    @Test
+    fun audioTalk_offersPlayAndListen() {
+        // A talk the feed carries as an mp3 is played like a video, from the hero
+        // and from the body; it used to show no way to start it at all.
+        composeTestRule.setContent {
+            TalkDetailPane(
+                talk = talk.copy(mediaUrl = "https://example.com/talk.mp3", isAudio = true),
+                showBackButton = false, onBack = {},
+            )
+        }
+        composeTestRule.onNodeWithContentDescription("Play").assertIsDisplayed()
+        composeTestRule.onNodeWithText("Listen").performScrollTo().assertIsDisplayed()
     }
 
     @Test
@@ -111,13 +125,13 @@ class TalkDetailPaneTest {
         try {
             composeTestRule.setContent {
                 TalkDetailPane(
-                    talk = talk.copy(videoUrl = "https://example.com/v.mp4"),
+                    talk = talk.copy(mediaUrl = "https://example.com/v.mp4"),
                     showBackButton = true,
                     onBack = {},
                     getExoPlayer = { player },
                 )
             }
-            composeTestRule.onNodeWithContentDescription("Play video").performClick()
+            composeTestRule.onNodeWithContentDescription("Play").performClick()
             composeTestRule.waitForIdle()
             assertNotNull("tapping the hero play button should start the inline player", playerView())
         } finally {
@@ -141,14 +155,14 @@ class TalkDetailPaneTest {
                     LocalUiMediaScope provides PostureScope(tabletop, 841.dp, 673.dp),
                 ) {
                     TalkDetailPane(
-                        talk = talk.copy(videoUrl = "https://example.com/v.mp4"),
+                        talk = talk.copy(mediaUrl = "https://example.com/v.mp4"),
                         showBackButton = false,
                         onBack = {},
                         getExoPlayer = { player },
                     )
                 }
             }
-            composeTestRule.onNodeWithContentDescription("Play video").performClick()
+            composeTestRule.onNodeWithContentDescription("Play").performClick()
             composeTestRule.waitForIdle()
             val before = playerView()
             assertNotNull("the inline player should be on screen after Play", before)
