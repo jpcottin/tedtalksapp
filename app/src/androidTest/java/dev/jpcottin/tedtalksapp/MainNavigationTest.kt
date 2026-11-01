@@ -23,7 +23,7 @@ class MainNavigationTest {
     @get:Rule val composeTestRule = createAndroidComposeRule<TestActivity>()
 
     private class StaticRepo(val talks: List<TalkItem>) : TedTalksRepository {
-        override suspend fun fetchTalks(): Result<List<TalkItem>> = Result.success(talks)
+        override suspend fun fetchTalks(includeAudio: Boolean): Result<List<TalkItem>> = Result.success(talks)
     }
 
     private val talks = listOf(

@@ -13,10 +13,14 @@ class FakeTedTalksRepository(
 ) : TedTalksRepository {
     var fetchCount: Int = 0
         private set
+    /** What the last `fetchTalks` was asked for. */
+    var lastIncludeAudio: Boolean? = null
+        private set
     var gate: CompletableDeferred<Unit>? = null
 
-    override suspend fun fetchTalks(): Result<List<TalkItem>> {
+    override suspend fun fetchTalks(includeAudio: Boolean): Result<List<TalkItem>> {
         fetchCount++
+        lastIncludeAudio = includeAudio
         gate?.await()
         return response
     }

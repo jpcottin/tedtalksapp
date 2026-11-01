@@ -53,6 +53,98 @@ class DefaultTedTalksRepositoryTest {
         assertEquals("Hamish McKenzie", talks[0].speaker)
     }
 
+    private val bundledVideoFeed = """
+        <rss xmlns:media="http://search.yahoo.com/mrss/" xmlns:itunes="http://www.itunes.com/dtds/podcast-1.0.dtd">
+          <channel>
+            <item><title>Old video | Vera</title><guid>v-old</guid><pubDate>Tue, 15 Oct 2024 10:00:00 +0000</pubDate>
+              <media:content url="https://example.com/old.mp4" type="video/mp4"/></item>
+            <item><title>New video | Victor</title><guid>v-new</guid><pubDate>Wed, 21 May 2025 10:00:00 +0000</pubDate>
+              <media:content url="https://example.com/new.mp4" type="video/mp4"/></item>
+          </channel>
+        </rss>
+    """.trimIndent()
+
+    private val audioFeed = """
+        <rss xmlns:itunes="http://www.itunes.com/dtds/podcast-1.0.dtd">
+          <channel>
+            <itunes:author>TED</itunes:author>
+            <item><title>Newest audio | Ada</title><guid>a-new</guid><pubDate>Sun, 01 Nov 2026 07:00:00 GMT</pubDate>
+              <enclosure url="https://example.com/new.mp3" type="audio/mpeg"/></item>
+            <item><title>Between the videos | Alan</title><guid>a-mid</guid><pubDate>Wed, 01 Jan 2025 07:00:00 GMT</pubDate>
+              <enclosure url="https://example.com/mid.mp3" type="audio/mpeg"/></item>
+          </channel>
+        </rss>
+    """.trimIndent()
+
+    private fun bundledRepository() = DefaultTedTalksRepository(
+        feedUrl = server.url("/feed").toString(),
+        client = client,
+        bundledFeed = { bundledVideoFeed.byteInputStream() },
+    )
+
+    @Test
+    fun fetchTalks_withABundledFeed_listsItsVideosWithoutTouchingTheNetwork() = runTest {
+        val repo = bundledRepository()
+
+        val talks = repo.fetchTalks().getOrThrow()
+
+        assertEquals(listOf("v-old", "v-new"), talks.map { it.id })   // the feed's own order
+        assertTrue(talks.none { it.isAudio })
+        assertEquals(0, server.requestCount)
+    }
+
+    @Test
+    fun fetchTalks_withAudio_addsTheLiveTalksNewestFirst() = runTest {
+        server.enqueue(MockResponse().setResponseCode(200).setBody(audioFeed))
+        val repo = bundledRepository()
+
+        val talks = repo.fetchTalks(includeAudio = true).getOrThrow()
+
+        assertEquals(listOf("a-new", "v-new", "a-mid", "v-old"), talks.map { it.id })
+        assertEquals(listOf(true, false, true, false), talks.map { it.isAudio })
+        assertEquals("Ada", talks[0].speaker)
+    }
+
+    @Test
+    fun fetchTalks_withAudio_parsesTheBundledFeedOnce() = runTest {
+        var opened = 0
+        val repo = DefaultTedTalksRepository(
+            feedUrl = server.url("/feed").toString(),
+            client = client,
+            bundledFeed = { opened++; bundledVideoFeed.byteInputStream() },
+        )
+        server.enqueue(MockResponse().setResponseCode(200).setBody(audioFeed))
+        server.enqueue(MockResponse().setResponseCode(200).setBody(audioFeed))
+
+        repo.fetchTalks()
+        repo.fetchTalks(includeAudio = true)
+        repo.fetchTalks(includeAudio = true)
+
+        assertEquals(1, opened)
+    }
+
+    @Test
+    fun fetchTalks_withAudio_liveFailureIsAFailure() = runTest {
+        // The caller keeps whatever list it has and reports; a silent fall back to the
+        // videos would look like the audio talks had vanished.
+        server.enqueue(MockResponse().setResponseCode(503))
+        val repo = bundledRepository()
+
+        val result = repo.fetchTalks(includeAudio = true)
+
+        assertTrue(result.isFailure)
+        assertEquals("HTTP 503: the feed's server could not serve it", result.exceptionOrNull()?.message)
+    }
+
+    @Test
+    fun fetchTalks_withoutABundledFeed_isTheLiveFeedWhateverTheChoice() = runTest {
+        server.enqueue(MockResponse().setResponseCode(200).setBody(audioFeed))
+
+        val talks = repository.fetchTalks(includeAudio = false).getOrThrow()
+
+        assertEquals(listOf("a-new", "a-mid"), talks.map { it.id })
+    }
+
     @Test
     fun fetchTalks_cancelled_abortsTheCallPromptly() = runTest {
         server.enqueue(MockResponse().setSocketPolicy(SocketPolicy.NO_RESPONSE))

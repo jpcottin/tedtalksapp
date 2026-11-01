@@ -19,6 +19,7 @@ import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
@@ -41,6 +42,7 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.media3.common.MediaItem
+import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.ui.PlayerView
@@ -61,6 +63,8 @@ fun VideoPlayerView(
     modifier: Modifier = Modifier,
     /** Cover art for a talk that is audio only: the player shows it in place of the frames. */
     artworkUrl: String? = null,
+    /** The player gave up on the media: a file gone from its server, no network, an unplayable stream. */
+    onPlaybackError: (PlaybackException) -> Unit = {},
 ) {
     if (LocalInspectionMode.current) {
         // Preview placeholder
@@ -100,10 +104,15 @@ fun VideoPlayerView(
     val isInPip = rememberIsInPipMode()
     var shouldEnterPip by remember { mutableStateOf(exoPlayer?.isPlaying == true) }
 
+    val currentOnPlaybackError by rememberUpdatedState(onPlaybackError)
     DisposableEffect(exoPlayer) {
         val listener = object : Player.Listener {
             override fun onIsPlayingChanged(isPlaying: Boolean) {
                 shouldEnterPip = isPlaying
+            }
+            override fun onPlayerError(error: PlaybackException) {
+                Log.w("VideoPlayerView", "Playback failed: ${error.errorCodeName}", error)
+                currentOnPlaybackError(error)
             }
         }
         exoPlayer?.addListener(listener)

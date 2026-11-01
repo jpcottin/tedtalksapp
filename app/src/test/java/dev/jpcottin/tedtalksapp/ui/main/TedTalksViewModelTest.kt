@@ -6,6 +6,7 @@ import androidx.lifecycle.ViewModelStore
 import androidx.media3.common.Player
 import androidx.media3.exoplayer.ExoPlayer
 import dev.jpcottin.tedtalksapp.data.FakeTedTalksRepository
+import dev.jpcottin.tedtalksapp.data.InMemoryTalkSourceSettings
 import dev.jpcottin.tedtalksapp.data.TalkItem
 import io.mockk.every
 import io.mockk.mockk
@@ -171,6 +172,50 @@ class TedTalksViewModelTest {
         viewModel.clearRefreshError()
 
         assertNull(viewModel.refreshError.value)
+    }
+
+    @Test
+    fun includeAudio_startsFromTheSavedChoiceAndAsksTheRepositoryForIt() = runTest {
+        val repo = FakeTedTalksRepository(Result.success(sampleTalks))
+        val viewModel = TedTalksViewModel(repo, sourceSettings = InMemoryTalkSourceSettings(includeAudio = true))
+
+        assertTrue(viewModel.includeAudio.value)
+        assertEquals(true, repo.lastIncludeAudio)
+    }
+
+    @Test
+    fun setIncludeAudio_savesTheChoiceAndReloadsWithIt() = runTest {
+        val repo = FakeTedTalksRepository(Result.success(sampleTalks))
+        val settings = InMemoryTalkSourceSettings()
+        val viewModel = TedTalksViewModel(repo, sourceSettings = settings)
+        assertEquals(false, repo.lastIncludeAudio)
+
+        viewModel.setIncludeAudio(true)
+
+        assertTrue(viewModel.includeAudio.value)
+        assertTrue(settings.includeAudio)
+        assertEquals(true, repo.lastIncludeAudio)
+        assertEquals(2, repo.fetchCount)
+        assertTrue(viewModel.uiState.value is TedTalksUiState.Success)
+
+        viewModel.setIncludeAudio(true)                                 // the same choice again: nothing to do
+        assertEquals(2, repo.fetchCount)
+    }
+
+    @Test
+    fun setIncludeAudio_whileAFetchIsInFlight_dropsItForTheNewOne() = runTest {
+        val repo = FakeTedTalksRepository(Result.success(sampleTalks))
+        val viewModel = TedTalksViewModel(repo)                         // the initial load completes
+        repo.gate = CompletableDeferred()
+        viewModel.loadTalks()                                           // a refresh, held open
+        assertTrue(viewModel.isRefreshing.value)
+
+        repo.gate = null
+        viewModel.setIncludeAudio(true)
+
+        assertEquals(true, repo.lastIncludeAudio)
+        assertEquals(3, repo.fetchCount)
+        assertFalse(viewModel.isRefreshing.value)
     }
 
     @Test

@@ -33,6 +33,7 @@ import androidx.compose.material.icons.automirrored.filled.OpenInNew
 import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.ErrorOutline
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.HorizontalDivider
@@ -54,6 +55,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
@@ -73,6 +75,9 @@ fun TalkDetailPane(
     getExoPlayer: ((String) -> ExoPlayer)? = null,
 ) {
     var isPlayerVisible by rememberSaveable(talk.id) { mutableStateOf(false) }
+    // Why the last attempt to play ended, in words; Play tries again.
+    var playbackError by rememberSaveable(talk.id) { mutableStateOf<String?>(null) }
+    val play = { playbackError = null; isPlayerVisible = true }
 
     // Acquired once per playback: asking the view model on every recomposition
     // would restart a video the user paused each time the layout changes.
@@ -92,6 +97,11 @@ fun TalkDetailPane(
                     exoPlayer = player,
                     // An audio talk has no frames: the player shows the cover instead.
                     artworkUrl = if (talk.isAudio) talk.imageUrl else null,
+                    onPlaybackError = { error ->
+                        // Back to the hero and its play button, with the reason under it.
+                        playbackError = PlaybackFailure.describe(error, talk.isAudio)
+                        isPlayerVisible = false
+                    },
                     modifier = mediaModifier,
                 )
             }
@@ -121,7 +131,7 @@ fun TalkDetailPane(
             HeroArea(
                 talk = talk,
                 isPlayerVisible = isPlayerVisible,
-                onPlay = { isPlayerVisible = true },
+                onPlay = play,
                 showBackButton = showBackButton,
                 onBack = onBack,
                 playerContent = playerContent,
@@ -133,7 +143,8 @@ fun TalkDetailPane(
             DetailContent(
                 talk = talk,
                 isPlayerVisible = isPlayerVisible,
-                onPlay = { isPlayerVisible = true },
+                playbackError = playbackError,
+                onPlay = play,
                 modifier = Modifier
                     .weight(1f)
                     .verticalScroll(rememberScrollState()),
@@ -151,7 +162,7 @@ fun TalkDetailPane(
         HeroArea(
             talk = talk,
             isPlayerVisible = isPlayerVisible,
-            onPlay = { isPlayerVisible = true },
+            onPlay = play,
             showBackButton = showBackButton,
             onBack = onBack,
             playerContent = playerContent,
@@ -161,7 +172,8 @@ fun TalkDetailPane(
         DetailContent(
             talk = talk,
             isPlayerVisible = isPlayerVisible,
-            onPlay = { isPlayerVisible = true },
+            playbackError = playbackError,
+            onPlay = play,
         )
     }
 }
@@ -292,6 +304,7 @@ private fun DetailContent(
     isPlayerVisible: Boolean,
     onPlay: () -> Unit,
     modifier: Modifier = Modifier,
+    playbackError: String? = null,
 ) {
     val context = LocalContext.current
     val hasMedia = talk.mediaUrl != null
@@ -384,6 +397,25 @@ private fun DetailContent(
 
         Spacer(modifier = Modifier.height(24.dp))
 
+        if (playbackError != null && !isPlayerVisible) {
+            Row(verticalAlignment = Alignment.Top) {
+                Icon(
+                    imageVector = Icons.Default.ErrorOutline,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.error,
+                    modifier = Modifier.size(20.dp),
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                    text = playbackError,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.error,
+                    modifier = Modifier.testTag("playback_error"),
+                )
+            }
+            Spacer(modifier = Modifier.height(12.dp))
+        }
+
         if (hasMedia && !isPlayerVisible) {
             val playInteraction = remember { MutableInteractionSource() }
             Button(
@@ -396,7 +428,14 @@ private fun DetailContent(
             ) {
                 Icon(Icons.Default.PlayArrow, contentDescription = null)
                 Spacer(modifier = Modifier.width(8.dp))
-                Text(if (talk.isAudio) "Listen" else "Play video", fontWeight = FontWeight.Bold)
+                Text(
+                    text = when {
+                        playbackError != null -> "Try again"
+                        talk.isAudio -> "Listen"
+                        else -> "Play video"
+                    },
+                    fontWeight = FontWeight.Bold,
+                )
             }
             Spacer(modifier = Modifier.height(8.dp))
         }

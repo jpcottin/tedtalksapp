@@ -15,6 +15,10 @@ import androidx.compose.material3.Surface
 import androidx.compose.ui.Modifier
 import androidx.lifecycle.viewmodel.compose.viewModel
 import dev.jpcottin.tedtalksapp.theme.TedTalksTheme
+import androidx.compose.runtime.remember
+import androidx.compose.ui.platform.LocalContext
+import dev.jpcottin.tedtalksapp.data.DefaultTedTalksRepository
+import dev.jpcottin.tedtalksapp.data.PreferencesTalkSourceSettings
 import dev.jpcottin.tedtalksapp.ui.main.TedTalksViewModel
 
 @SuppressLint("Instantiatable")
@@ -30,7 +34,16 @@ class MainActivity : ComponentActivity() {
     Log.d("MainActivityLifecycle", "onCreate")
 
     setContent {
-      val viewModel: TedTalksViewModel = viewModel()
+      // The bundled video feed comes from the app's assets, the audio choice from its preferences.
+      val appContext = LocalContext.current.applicationContext
+      val viewModel: TedTalksViewModel = viewModel(
+        factory = remember(appContext) {
+          TedTalksViewModel.factory(
+            DefaultTedTalksRepository(bundledFeed = { appContext.assets.open(DefaultTedTalksRepository.BUNDLED_VIDEO_FEED) }),
+            PreferencesTalkSourceSettings(appContext),
+          )
+        },
+      )
       TedTalksTheme {
         Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
           MainNavigation(viewModel)

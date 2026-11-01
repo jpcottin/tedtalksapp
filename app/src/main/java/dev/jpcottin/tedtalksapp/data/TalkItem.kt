@@ -12,4 +12,6 @@ data class TalkItem(
     /** The talk itself: an mp4 video, or an mp3 when the feed carries audio only. */
     val mediaUrl: String?,
     val isAudio: Boolean = false,
+    /** Publication instant, epoch millis, for ordering talks from more than one source; 0 when unknown. */
+    val publishedMillis: Long = 0L,
 )

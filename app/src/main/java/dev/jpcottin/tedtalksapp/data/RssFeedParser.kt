@@ -6,6 +6,7 @@ import org.xmlpull.v1.XmlPullParserFactory
 import java.io.InputStream
 import java.text.DateFormat
 import java.text.SimpleDateFormat
+import java.util.Date
 import java.util.Locale
 
 class RssFeedParser {
@@ -121,6 +122,7 @@ class RssFeedParser {
             link = link,
             mediaUrl = mediaUrl,
             isAudio = isAudio,
+            publishedMillis = parseDate(pubDate)?.time ?: 0L,
         )
     }
 
@@ -194,12 +196,13 @@ class RssFeedParser {
     // pattern used to put a translated month name in the American order.
     private fun formatDate(dateStr: String): String {
         if (dateStr.isBlank()) return ""
-        return try {
-            val input = SimpleDateFormat("EEE, dd MMM yyyy HH:mm:ss Z", Locale.ENGLISH)
-            val output = DateFormat.getDateInstance(DateFormat.MEDIUM, Locale.getDefault())
-            output.format(input.parse(dateStr) ?: return dateStr)
-        } catch (_: Exception) {
-            dateStr
-        }
+        val date = parseDate(dateStr) ?: return dateStr
+        return DateFormat.getDateInstance(DateFormat.MEDIUM, Locale.getDefault()).format(date)
+    }
+
+    private fun parseDate(dateStr: String): Date? = try {
+        SimpleDateFormat("EEE, dd MMM yyyy HH:mm:ss Z", Locale.ENGLISH).parse(dateStr.trim())
+    } catch (_: Exception) {
+        null
     }
 }
