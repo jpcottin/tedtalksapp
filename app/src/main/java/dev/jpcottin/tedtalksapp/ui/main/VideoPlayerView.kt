@@ -44,6 +44,9 @@ import androidx.media3.common.MediaItem
 import androidx.media3.common.Player
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.ui.PlayerView
+import coil3.asDrawable
+import coil3.imageLoader
+import coil3.request.ImageRequest
 import android.view.KeyEvent as AndroidKeyEvent
 
 import androidx.compose.ui.platform.LocalInspectionMode
@@ -56,6 +59,8 @@ import android.util.Log
 fun VideoPlayerView(
     exoPlayer: ExoPlayer?,
     modifier: Modifier = Modifier,
+    /** Cover art for a talk that is audio only: the player shows it in place of the frames. */
+    artworkUrl: String? = null,
 ) {
     if (LocalInspectionMode.current) {
         // Preview placeholder
@@ -133,7 +138,8 @@ fun VideoPlayerView(
     val viewFactory: (Context) -> PlayerView = { ctx ->
         Log.d("VideoPlayerView", "Creating PlayerView")
         (LayoutInflater.from(ctx).inflate(R.layout.view_player, null) as PlayerView).apply {
-            keepScreenOn = true
+            // A screen that shows nothing but the cover may go to sleep.
+            keepScreenOn = artworkUrl == null
             layoutParams = ViewGroup.LayoutParams(MATCH_PARENT, MATCH_PARENT)
         }
     }
@@ -141,6 +147,7 @@ fun VideoPlayerView(
     if (isFullscreen && exoPlayer != null) {
         FullscreenPlayerDialog(
             exoPlayer = exoPlayer,
+            artworkUrl = artworkUrl,
             onDismiss = { isFullscreen = false }
         )
     } else {
@@ -170,6 +177,7 @@ fun VideoPlayerView(
                 if (pv.player != exoPlayer) {
                     pv.player = exoPlayer
                 }
+                pv.showArtwork(artworkUrl)
                 pv.useController = !isInPip
                 pv.setFullscreenButtonState(false)
                 pv.setFullscreenButtonClickListener { isFullscreen = true }
@@ -198,6 +206,7 @@ fun VideoPlayerView(
 @Composable
 private fun FullscreenPlayerDialog(
     exoPlayer: ExoPlayer,
+    artworkUrl: String?,
     onDismiss: () -> Unit,
 ) {
     BackHandler(onBack = onDismiss)
@@ -250,6 +259,7 @@ private fun FullscreenPlayerDialog(
                     if (pv.player != exoPlayer) {
                         pv.player = exoPlayer
                     }
+                    pv.showArtwork(artworkUrl)
                     pv.setFullscreenButtonState(true)
                     pv.setFullscreenButtonClickListener { onDismiss() }
                 },
@@ -267,6 +277,28 @@ private fun FullscreenPlayerDialog(
             )
         }
     }
+}
+
+/**
+ * The cover of an audio talk, shown by the player view itself whenever the media has no
+ * video track (its default artwork), cropped to fill like the hero image it replaces.
+ * The view remembers the URL it was given so a recomposition does not fetch it again.
+ */
+@androidx.annotation.OptIn(androidx.media3.common.util.UnstableApi::class)
+private fun PlayerView.showArtwork(url: String?) {
+    if (tag == url) return
+    tag = url
+    if (url == null) {
+        defaultArtwork = null
+        return
+    }
+    artworkDisplayMode = PlayerView.ARTWORK_DISPLAY_MODE_FILL
+    context.imageLoader.enqueue(
+        ImageRequest.Builder(context)
+            .data(url)
+            .target(onSuccess = { image -> if (tag == url) defaultArtwork = image.asDrawable(context.resources) })
+            .build()
+    )
 }
 
 @Preview(showBackground = true, widthDp = 400, heightDp = 225, name = "Video Player (Inline)")

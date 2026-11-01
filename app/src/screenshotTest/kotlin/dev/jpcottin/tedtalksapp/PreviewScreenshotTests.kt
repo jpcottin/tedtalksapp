@@ -58,7 +58,7 @@ private val sampleTalk = TalkItem(
     duration = "10:58",
     imageUrl = "",
     link = "https://ted.com",
-    videoUrl = "https://example.com/video.mp4",
+    mediaUrl = "https://example.com/video.mp4",
 )
 
 @PreviewTest

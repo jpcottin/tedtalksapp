@@ -76,8 +76,8 @@ fun TalkDetailPane(
 
     // Acquired once per playback: asking the view model on every recomposition
     // would restart a video the user paused each time the layout changes.
-    val player = if (isPlayerVisible && talk.videoUrl != null && getExoPlayer != null)
-        remember(talk.videoUrl) { getExoPlayer(talk.videoUrl) } else null
+    val player = if (isPlayerVisible && talk.mediaUrl != null && getExoPlayer != null)
+        remember(talk.mediaUrl) { getExoPlayer(talk.mediaUrl) } else null
 
     // One player view for every layout. The PiP window, the tabletop split and the
     // scrolling page each place the video in a different slot of the tree, and a
@@ -88,7 +88,12 @@ fun TalkDetailPane(
     val playerContent: (@Composable (Modifier) -> Unit)? = if (player != null) {
         remember(player) {
             movableContentOf { mediaModifier: Modifier ->
-                VideoPlayerView(exoPlayer = player, modifier = mediaModifier)
+                VideoPlayerView(
+                    exoPlayer = player,
+                    // An audio talk has no frames: the player shows the cover instead.
+                    artworkUrl = if (talk.isAudio) talk.imageUrl else null,
+                    modifier = mediaModifier,
+                )
             }
         }
     } else null
@@ -179,7 +184,7 @@ private fun HeroArea(
     fillParent: Boolean,
     modifier: Modifier = Modifier,
 ) {
-    val hasVideo = talk.videoUrl != null
+    val hasMedia = talk.mediaUrl != null
     val mediaModifier = if (fillParent) Modifier.fillMaxSize() else Modifier.fillMaxWidth().aspectRatio(16f / 9f)
 
     // Target size follows the input, not the form factor label: bigger when
@@ -218,7 +223,7 @@ private fun HeroArea(
                     modifier = Modifier.fillMaxWidth().weight(1f),
                     contentAlignment = Alignment.Center,
                 ) {
-                    if (hasVideo) {
+                    if (hasMedia) {
                         val playInteraction = remember { MutableInteractionSource() }
                         IconButton(
                             onClick = onPlay,
@@ -232,7 +237,7 @@ private fun HeroArea(
                         ) {
                             Icon(
                                 imageVector = Icons.Default.PlayArrow,
-                                contentDescription = "Play video",
+                                contentDescription = "Play",
                                 tint = Color.White,
                                 modifier = Modifier.size(playButtonSize - 28.dp),
                             )
@@ -289,7 +294,7 @@ private fun DetailContent(
     modifier: Modifier = Modifier,
 ) {
     val context = LocalContext.current
-    val hasVideo = talk.videoUrl != null
+    val hasMedia = talk.mediaUrl != null
     val isTV = isTelevision()
 
     Column(
@@ -379,7 +384,7 @@ private fun DetailContent(
 
         Spacer(modifier = Modifier.height(24.dp))
 
-        if (hasVideo && !isPlayerVisible) {
+        if (hasMedia && !isPlayerVisible) {
             val playInteraction = remember { MutableInteractionSource() }
             Button(
                 onClick = onPlay,
@@ -391,7 +396,7 @@ private fun DetailContent(
             ) {
                 Icon(Icons.Default.PlayArrow, contentDescription = null)
                 Spacer(modifier = Modifier.width(8.dp))
-                Text("Play video", fontWeight = FontWeight.Bold)
+                Text(if (talk.isAudio) "Listen" else "Play video", fontWeight = FontWeight.Bold)
             }
             Spacer(modifier = Modifier.height(8.dp))
         }

@@ -16,10 +16,16 @@ class RssFeedParser {
         val parser = factory.newPullParser()
         parser.setInput(inputStream, "UTF-8")
         val talks = mutableListOf<TalkItem>()
+        // The podcast feed names its publisher as the author of every episode
+        // ("TED"); an item whose author is the channel's own carries no speaker.
+        var channelAuthor = ""
         var eventType = parser.eventType
         while (eventType != XmlPullParser.END_DOCUMENT) {
-            if (eventType == XmlPullParser.START_TAG && parser.name == "item") {
-                talks.add(readItem(parser))
+            if (eventType == XmlPullParser.START_TAG) {
+                when (parser.name) {
+                    "item" -> talks.add(readItem(parser, channelAuthor))
+                    "itunes:author" -> channelAuthor = readText(parser).trim()
+                }
             }
             eventType = parser.next()
         }
@@ -31,7 +37,7 @@ class RssFeedParser {
             .distinctBy { it.id }
     }
 
-    private fun readItem(parser: XmlPullParser): TalkItem {
+    private fun readItem(parser: XmlPullParser, channelAuthor: String): TalkItem {
         var title = ""
         var description = ""
         var link = ""
@@ -39,8 +45,18 @@ class RssFeedParser {
         var author = ""
         var duration = ""
         var imageUrl = ""
-        var videoUrl: String? = null
+        var mediaUrl: String? = null
+        var isAudio = false
         var guid = ""
+
+        // The talk's own file: an mp4 wins over an mp3, whichever element carries it.
+        fun offerMedia(type: String, url: String) {
+            if (url.isEmpty()) return
+            when (type.substringBefore(';').trim()) {
+                "video/mp4" -> { mediaUrl = url; isAudio = false }
+                "audio/mpeg", "audio/mp3" -> if (mediaUrl == null) { mediaUrl = url; isAudio = true }
+            }
+        }
 
         while (true) {
             val event = parser.next()
@@ -65,12 +81,8 @@ class RssFeedParser {
                     if (imageUrl.isEmpty()) imageUrl = url
                     skip(parser)
                 }
-                "media:content" -> {
-                    val type = parser.getAttributeValue(null, "type") ?: ""
-                    val url = parser.getAttributeValue(null, "url") ?: ""
-                    if (type == "video/mp4" && url.isNotEmpty()) {
-                        videoUrl = url
-                    }
+                "media:content", "enclosure" -> {
+                    offerMedia(parser.getAttributeValue(null, "type") ?: "", parser.getAttributeValue(null, "url") ?: "")
                     skip(parser)
                 }
                 "media:group" -> { /* children processed naturally by the outer loop */ }
@@ -79,21 +91,27 @@ class RssFeedParser {
         }
 
         // TED has published both "Speaker | Title" and, since 2026, "Title | Speaker".
-        // When the author is known, drop whichever end matches it; otherwise fall
-        // back to the historical speaker-first order.
+        // When the author names the speaker, drop whichever end matches it. Without
+        // one (the podcast feed credits every episode to the publisher), the title
+        // is read in today's order, "Title | Speaker"; a lone title names no speaker,
+        // or it would be shown twice, as title and as speaker.
         val parts = title.split(" | ").map { it.trim() }
-        // Without an author, only a "Speaker | Title" pair names a speaker: a lone
-        // title would otherwise be shown twice, as title and as speaker.
-        val cleanSpeaker = author.trim().ifEmpty { if (parts.size >= 2) parts[0] else "" }
-        val cleanTitle = when {
+        val speakerAuthor = author.trim().takeUnless { it.equals(channelAuthor, ignoreCase = true) }.orEmpty()
+        var cleanSpeaker = speakerAuthor.ifEmpty { if (parts.size >= 2) parts.last() else "" }
+        var cleanTitle = when {
             parts.size < 2 -> title.trim()
             parts.last().equals(cleanSpeaker, ignoreCase = true) -> parts.dropLast(1).joinToString(" | ")
             parts.first().equals(cleanSpeaker, ignoreCase = true) -> parts.drop(1).joinToString(" | ")
             else -> parts[1]
         }
+        // "Kaeli Swift (re-release)": the note belongs to the talk, not to the speaker.
+        SPEAKER_NOTE.find(cleanSpeaker)?.let { m ->
+            cleanSpeaker = m.groupValues[1]
+            cleanTitle = "$cleanTitle ${m.groupValues[2]}"
+        }
 
         return TalkItem(
-            id = guid.ifEmpty { link }.ifEmpty { videoUrl ?: "" },
+            id = guid.ifEmpty { link }.ifEmpty { mediaUrl ?: "" },
             title = cleanTitle,
             speaker = cleanSpeaker,
             description = stripHtml(description),
@@ -101,7 +119,8 @@ class RssFeedParser {
             duration = formatDuration(duration),
             imageUrl = imageUrl,
             link = link,
-            videoUrl = videoUrl,
+            mediaUrl = mediaUrl,
+            isAudio = isAudio,
         )
     }
 
@@ -161,6 +180,7 @@ class RssFeedParser {
         if (Character.isValidCodePoint(code)) String(Character.toChars(code)) else "\uFFFD"
 
     private companion object {
+        val SPEAKER_NOTE = Regex("""^(.*\S)\s+(\([^()]*\))$""")
         val ENTITY = Regex("&(#x[0-9a-fA-F]+|#[0-9]+|[a-zA-Z]+);")
         val NAMED_ENTITIES = mapOf(
             "amp" to "&", "lt" to "<", "gt" to ">", "quot" to "\"", "apos" to "'",
