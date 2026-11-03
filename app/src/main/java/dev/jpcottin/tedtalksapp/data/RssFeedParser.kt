@@ -95,12 +95,21 @@ class RssFeedParser {
         // When the author names the speaker, drop whichever end matches it. Without
         // one (the podcast feed credits every episode to the publisher), the title
         // is read in today's order, "Title | Speaker"; a lone title names no speaker,
-        // or it would be shown twice, as title and as speaker.
-        val parts = title.split(" | ").map { it.trim() }
+        // or it would be shown twice, as title and as speaker. A title that ends in a
+        // bare bar ("... ghost town |") names none either. The podcast's series
+        // episodes have a third part, "Title | Speaker | Your Body on Tech": the series
+        // goes with the talk, in brackets, never in the speaker's place.
+        val parts = title.trim().removeSuffix("|").trim().split(" | ").map { it.trim() }
         val speakerAuthor = author.trim().takeUnless { it.equals(channelAuthor, ignoreCase = true) }.orEmpty()
-        var cleanSpeaker = speakerAuthor.ifEmpty { if (parts.size >= 2) parts.last() else "" }
+        var cleanSpeaker = when {
+            speakerAuthor.isNotEmpty() -> speakerAuthor
+            parts.size >= 3 -> parts[1]
+            parts.size == 2 -> parts.last()
+            else -> ""
+        }
         var cleanTitle = when {
-            parts.size < 2 -> title.trim()
+            parts.size < 2 -> parts[0]
+            speakerAuthor.isEmpty() && parts.size >= 3 -> "${parts[0]} (${parts.drop(2).joinToString(" | ")})"
             parts.last().equals(cleanSpeaker, ignoreCase = true) -> parts.dropLast(1).joinToString(" | ")
             parts.first().equals(cleanSpeaker, ignoreCase = true) -> parts.drop(1).joinToString(" | ")
             else -> parts[1]
