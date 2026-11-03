@@ -437,6 +437,33 @@ class RssFeedParserTest {
     }
 
     @Test
+    fun parse_seriesAfterTheSpeaker_goesWithTheTalkNotTheSpeaker() {
+        // The podcast feed's series episodes: "Title | Speaker | Series", every one
+        // credited to the publisher. The series is not the speaker.
+        val xml = """
+            <rss version="2.0">
+                <channel>
+                    <itunes:author>TED</itunes:author>
+                    <item>
+                        <title>The case for making art in a crisis | Yiyun Kang | Your Body on Tech</title>
+                        <itunes:author>TED</itunes:author>
+                    </item>
+                </channel>
+            </rss>
+        """.trimIndent()
+        val talk = parseString(xml).single()
+        assertEquals("Yiyun Kang", talk.speaker)
+        assertEquals("The case for making art in a crisis (Your Body on Tech)", talk.title)
+    }
+
+    @Test
+    fun parse_titleEndingInABar_namesNoSpeakerAndDropsTheBar() {
+        val talk = parseString(feed("<item><title>How to keep your hometown from becoming a ghost town |</title></item>")).single()
+        assertEquals("How to keep your hometown from becoming a ghost town", talk.title)
+        assertEquals("", talk.speaker)
+    }
+
+    @Test
     fun parse_noAuthorNoSeparator_leavesSpeakerEmpty() {
         val talk = parseString(feed("<item><title>Some Title</title></item>")).single()
         assertEquals("Some Title", talk.title)
