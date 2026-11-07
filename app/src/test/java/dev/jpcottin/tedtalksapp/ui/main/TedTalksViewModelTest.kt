@@ -54,10 +54,11 @@ class TedTalksViewModelTest {
     }
 
     @Test
-    fun init_emptyFeed_exposesErrorWithRetry() = runTest {
+    fun init_emptyFeed_exposesErrorSayingSo() = runTest {
         val viewModel = TedTalksViewModel(FakeTedTalksRepository(Result.success(emptyList())))
         val state = viewModel.uiState.value
         assertTrue("Expected Error but was $state", state is TedTalksUiState.Error)
+        assertEquals("The feed has no talks", (state as TedTalksUiState.Error).message)
     }
 
     @Test

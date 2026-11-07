@@ -12,7 +12,9 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.focusable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.size
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.SideEffect
@@ -21,6 +23,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
@@ -44,8 +47,11 @@ import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.media3.common.MediaItem
 import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
+import androidx.media3.common.VideoSize
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.ui.PlayerView
+import androidx.xr.compose.spatial.SpatialDialog
+import androidx.xr.compose.spatial.SpatialDialogProperties
 import coil3.asDrawable
 import coil3.imageLoader
 import coil3.request.ImageRequest
@@ -88,6 +94,7 @@ fun VideoPlayerView(
 
     val focusRequester = remember { FocusRequester() }
     val isDpadOnly = hasNoPointer()
+    val isSpatialUi = isSpatialUi()
     var playerViewRef by remember { mutableStateOf<PlayerView?>(null) }
 
     // Without a pointing device (TV remote, keyboard only) the player must own
@@ -154,11 +161,30 @@ fun VideoPlayerView(
     }
 
     if (isFullscreen && exoPlayer != null) {
-        FullscreenPlayerDialog(
-            exoPlayer = exoPlayer,
-            artworkUrl = artworkUrl,
-            onDismiss = { isFullscreen = false }
-        )
+        // The inline slot keeps its size under the dialog, so the page does not jump
+        // (in Android XR the page stays in view, dimmed, behind the cinema panel).
+        Box(modifier = modifier.background(Color.Black))
+        val cinemaHost = LocalCinemaHost.current
+        if (isSpatialUi && cinemaHost != null) {
+            // The window shows it, so it rises from the window's centre, not this pane's.
+            DisposableEffect(cinemaHost, exoPlayer, artworkUrl) {
+                val request = CinemaRequest(exoPlayer, artworkUrl) { isFullscreen = false }
+                cinemaHost.request = request
+                onDispose { if (cinemaHost.request === request) cinemaHost.request = null }
+            }
+        } else if (isSpatialUi) {
+            CinemaPlayerDialog(
+                exoPlayer = exoPlayer,
+                artworkUrl = artworkUrl,
+                onDismiss = { isFullscreen = false },
+            )
+        } else {
+            FullscreenPlayerDialog(
+                exoPlayer = exoPlayer,
+                artworkUrl = artworkUrl,
+                onDismiss = { isFullscreen = false }
+            )
+        }
     } else {
         // Feed the player's on-screen bounds to the system so the enter/exit
         // PiP animation morphs from the actual video rect.
@@ -241,50 +267,141 @@ private fun FullscreenPlayerDialog(
             }
         }
 
-        val fullscreenFocusRequester = remember { FocusRequester() }
-        var fullscreenPlayerView by remember { mutableStateOf<PlayerView?>(null) }
-        val isDpadOnly = hasNoPointer()
+        FullscreenPlayerSurface(
+            exoPlayer = exoPlayer,
+            artworkUrl = artworkUrl,
+            onDismiss = onDismiss,
+            modifier = Modifier.fillMaxSize(),
+        )
+    }
+}
 
-        LaunchedEffect(isDpadOnly) {
-            if (isDpadOnly) {
-                try { fullscreenFocusRequester.requestFocus() } catch (_: Exception) {}
+/** A player asking for the cinema; [onDismiss] hands the video back to it. */
+internal class CinemaRequest(
+    val exoPlayer: ExoPlayer,
+    val artworkUrl: String?,
+    val onDismiss: () -> Unit,
+)
+
+/** Shows the cinema a player in one of the panes asks for, from the window it is hosted in. */
+internal class CinemaHost {
+    var request: CinemaRequest? by mutableStateOf(null)
+}
+
+internal val LocalCinemaHost = staticCompositionLocalOf<CinemaHost?> { null }
+
+/**
+ * Hosts the Android XR cinema for the players in [content]. In Full Space each list-detail
+ * pane is a panel of its own, and a dialog rises from the panel it is shown in: from the
+ * detail pane the cinema would be centred on that pane, half out of view. Shown here, in
+ * the window, it is centred on the app. Off XR and in Home Space there is never a request.
+ */
+@Composable
+fun CinemaHostScope(content: @Composable () -> Unit) {
+    val host = remember { CinemaHost() }
+    CompositionLocalProvider(LocalCinemaHost provides host, content = content)
+    // Full Space only: leaving it removes the dialog rather than letting it fall back
+    // to a 2D one, which would move its content out of the spatial panel.
+    if (!isSpatialUi()) return
+    host.request?.let { request ->
+        CinemaPlayerDialog(
+            exoPlayer = request.exoPlayer,
+            artworkUrl = request.artworkUrl,
+            onDismiss = request.onDismiss,
+        )
+    }
+}
+
+/**
+ * Fullscreen in Android XR Full Space: a cinema panel elevated in front of the app, which
+ * the system pushes back and dims, with the room dimmed as well. The panel takes the
+ * video's own shape at a size well beyond the window's; the player's collapse button or
+ * BACK closes it.
+ */
+@androidx.annotation.OptIn(androidx.media3.common.util.UnstableApi::class)
+@Composable
+private fun CinemaPlayerDialog(
+    exoPlayer: ExoPlayer,
+    artworkUrl: String?,
+    onDismiss: () -> Unit,
+) {
+    var videoSize by remember(exoPlayer) { mutableStateOf(exoPlayer.videoSize) }
+    DisposableEffect(exoPlayer) {
+        val listener = object : Player.Listener {
+            override fun onVideoSizeChanged(size: VideoSize) {
+                videoSize = size
             }
         }
+        exoPlayer.addListener(listener)
+        onDispose { exoPlayer.removeListener(listener) }
+    }
+    DimPassthroughWhileComposed()
 
-        Box(
+    SpatialDialog(
+        onDismissRequest = onDismiss,
+        // Looking or pinching beside the video must not end it.
+        properties = SpatialDialogProperties(dismissOnClickOutside = false, usePlatformDefaultWidth = false),
+    ) {
+        FullscreenPlayerSurface(
+            exoPlayer = exoPlayer,
+            artworkUrl = artworkUrl,
+            onDismiss = onDismiss,
+            modifier = Modifier.size(
+                cinemaPanelSize(videoSize.width, videoSize.height, videoSize.pixelWidthHeightRatio)
+            ),
+        )
+    }
+}
+
+/** The player view of both fullscreen forms: its collapse button calls [onDismiss]. */
+@androidx.annotation.OptIn(androidx.media3.common.util.UnstableApi::class)
+@Composable
+private fun FullscreenPlayerSurface(
+    exoPlayer: ExoPlayer,
+    artworkUrl: String?,
+    onDismiss: () -> Unit,
+    modifier: Modifier,
+) {
+    val fullscreenFocusRequester = remember { FocusRequester() }
+    var fullscreenPlayerView by remember { mutableStateOf<PlayerView?>(null) }
+    val isDpadOnly = hasNoPointer()
+
+    LaunchedEffect(isDpadOnly) {
+        if (isDpadOnly) {
+            try { fullscreenFocusRequester.requestFocus() } catch (_: Exception) {}
+        }
+    }
+
+    Box(modifier = modifier.background(Color.Black)) {
+        AndroidView(
+            factory = { ctx ->
+                (LayoutInflater.from(ctx).inflate(R.layout.view_player, null) as PlayerView).apply {
+                    // As inline: a screen that shows nothing but the cover may go to sleep.
+                    keepScreenOn = artworkUrl == null
+                    layoutParams = ViewGroup.LayoutParams(MATCH_PARENT, MATCH_PARENT)
+                }
+            },
+            update = { pv ->
+                fullscreenPlayerView = pv
+                if (pv.player != exoPlayer) {
+                    pv.player = exoPlayer
+                }
+                pv.showArtwork(artworkUrl)
+                pv.setFullscreenButtonState(true)
+                pv.setFullscreenButtonClickListener { onDismiss() }
+            },
+            onRelease = { pv ->
+                pv.player = null
+                if (fullscreenPlayerView === pv) fullscreenPlayerView = null
+            },
             modifier = Modifier
                 .fillMaxSize()
-                .background(Color.Black),
-        ) {
-            AndroidView(
-                factory = { ctx ->
-                    (LayoutInflater.from(ctx).inflate(R.layout.view_player, null) as PlayerView).apply {
-                        keepScreenOn = true
-                        layoutParams = ViewGroup.LayoutParams(MATCH_PARENT, MATCH_PARENT)
-                    }
-                },
-                update = { pv ->
-                    fullscreenPlayerView = pv
-                    if (pv.player != exoPlayer) {
-                        pv.player = exoPlayer
-                    }
-                    pv.showArtwork(artworkUrl)
-                    pv.setFullscreenButtonState(true)
-                    pv.setFullscreenButtonClickListener { onDismiss() }
-                },
-                onRelease = { pv ->
-                    pv.player = null
-                    if (fullscreenPlayerView === pv) fullscreenPlayerView = null
-                },
-                modifier = Modifier
-                    .fillMaxSize()
-                    .focusRequester(fullscreenFocusRequester)
-                    .onKeyEvent { event ->
-                        fullscreenPlayerView?.dispatchKeyEvent(event.nativeKeyEvent) ?: false
-                    }
-                    .focusable(),
-            )
-        }
+                .focusRequester(fullscreenFocusRequester)
+                .onKeyEvent { event ->
+                    fullscreenPlayerView?.dispatchKeyEvent(event.nativeKeyEvent) ?: false
+                }
+                .focusable(),
+        )
     }
 }
 

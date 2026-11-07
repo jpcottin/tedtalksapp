@@ -236,8 +236,6 @@ class RssFeedParserTest {
         """.trimIndent()
         val talks = parseString(xml)
         assertEquals(1, talks.size)
-        // Note: The parser's stripHtml uses regex that strips tags and manually replaces some entities.
-        // It might not be a perfect HTML parser but it should strip `<p>` and `<b>` and `<br/>`.
         assertEquals("This is a bold description.  Also with some & stuff.", talks[0].description)
     }
 

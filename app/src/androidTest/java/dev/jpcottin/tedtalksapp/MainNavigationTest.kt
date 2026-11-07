@@ -3,12 +3,14 @@ package dev.jpcottin.tedtalksapp
 import dev.jpcottin.tedtalksapp.TestActivity
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
+import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import dev.jpcottin.tedtalksapp.data.TalkItem
 import dev.jpcottin.tedtalksapp.data.TedTalksRepository
 import dev.jpcottin.tedtalksapp.theme.TedTalksTheme
 import androidx.test.espresso.Espresso
+import androidx.xr.compose.platform.SpatialConfiguration
 import dev.jpcottin.tedtalksapp.ui.main.TedTalksViewModel
 import org.junit.Assert.assertNull
 import org.junit.Rule
@@ -58,6 +60,24 @@ class MainNavigationTest {
         composeTestRule.waitForIdle()
 
         composeTestRule.onNodeWithText("Bob's description.").assertIsDisplayed()
+    }
+
+    @Test
+    fun navGraph_offersFullSpaceOnAnAndroidXrDeviceOnly() {
+        val viewModel = TedTalksViewModel(StaticRepo(talks))
+        composeTestRule.setContent {
+            TedTalksTheme {
+                MainNavigation(viewModel = viewModel)
+            }
+        }
+        composeTestRule.waitForIdle()
+        // A phone, a tablet or a TV has no Full Space to go to; an XR headset or glasses do.
+        val toggle = composeTestRule.onNodeWithTag("space_toggle", useUnmergedTree = true)
+        if (SpatialConfiguration.hasXrSpatialFeature(composeTestRule.activity)) {
+            toggle.assertIsDisplayed()
+        } else {
+            toggle.assertDoesNotExist()
+        }
     }
 
     @Test

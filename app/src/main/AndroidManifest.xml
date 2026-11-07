@@ -7,6 +7,8 @@
     <!-- TV: declare leanback support, mark touchscreen as not required -->
     <uses-feature android:name="android.software.leanback" android:required="false" />
     <uses-feature android:name="android.hardware.touchscreen" android:required="false" />
+    <!-- Android XR: spatial UI in Full Space, published on the mobile track -->
+    <uses-feature android:name="android.software.xr.api.spatial" android:required="false" />
 
     <application
         android:name=".TedTalksApplication"

@@ -18,7 +18,8 @@ import androidx.compose.ui.unit.dp
  * being tracked by hand with onFocusChanged / mutableStateOf in each composable.
  *
  * The theme is a fixed dark palette, so the styles reference its colour tokens
- * directly rather than going through a CompositionLocal.
+ * directly rather than going through the colour scheme; only an additive display
+ * (see [LocalAdditiveDisplay]) swaps in brighter ones.
  */
 object TedTalksStyles {
 
@@ -44,8 +45,9 @@ object TedTalksStyles {
         shape(RoundedCornerShape(8.dp))
         // 16dp / 12dp gutters, of which 3dp is the focusRing border.
         contentPadding(horizontal = 13.dp, vertical = 9.dp)
-        hovered { background(SurfaceVariantDark.copy(alpha = 0.6f)) }
-        pressed { background(SurfaceVariantDark.copy(alpha = 0.8f)) }
-        selected { background(SurfaceVariantDark) }
+        val highlight = if (LocalAdditiveDisplay.currentValue) SurfaceVariantBright else SurfaceVariantDark
+        hovered { background(highlight.copy(alpha = 0.6f)) }
+        pressed { background(highlight.copy(alpha = 0.8f)) }
+        selected { background(highlight) }
     }
 }

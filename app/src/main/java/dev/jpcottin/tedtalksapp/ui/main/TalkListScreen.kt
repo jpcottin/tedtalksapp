@@ -90,6 +90,8 @@ fun TalkListPane(
     includeAudio: Boolean = false,
     /** The toggle for it in the app bar; none when null (previews, a fixed list). */
     onIncludeAudioChange: ((Boolean) -> Unit)? = null,
+    /** The Home Space / Full Space switch in the app bar, for an Android XR device. */
+    showSpaceToggle: Boolean = false,
 ) {
     // A reload that fails behind an existing list is only worth a snackbar:
     // the stale talks stay on screen and are still usable.
@@ -105,16 +107,18 @@ fun TalkListPane(
 
     // The app bar slides away as the list scrolls down and returns as soon as
     // the user scrolls up, giving the grid the full height on small windows.
+    // In Android XR Full Space it floats above the window instead and stays put.
+    val spatialUi = isSpatialUi()
     val scrollBehavior = TopAppBarDefaults.enterAlwaysScrollBehavior()
     // The first row of the grid: where focus lands when the list appears on a
     // D-pad device, and where DOWN from the app bar's chip sends it (the search
     // from the bar into the grid does not find the rows by itself on a TV).
     val firstItemFocusRequester = remember { FocusRequester() }
     Scaffold(
-        modifier = modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
+        modifier = if (spatialUi) modifier else modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
         contentWindowInsets = WindowInsets.safeDrawing,
         snackbarHost = { SnackbarHost(snackbarHostState) },
-        topBar = {
+        topBar = { SpatialAppBar {
             TopAppBar(
                 title = {
                     Text(
@@ -145,14 +149,19 @@ fun TalkListPane(
                                 .testTag("audio_toggle"),
                         )
                     }
+                    // In Full Space this bar is an orbiter above the window, so the
+                    // way back to Home Space stays where the way out of it was.
+                    if (showSpaceToggle) {
+                        SpaceToggle(modifier = Modifier.testTag("space_toggle"))
+                    }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = MaterialTheme.colorScheme.background,
                     scrolledContainerColor = MaterialTheme.colorScheme.background,
                 ),
-                scrollBehavior = scrollBehavior,
+                scrollBehavior = if (spatialUi) null else scrollBehavior,
             )
-        },
+        } },
     ) { innerPadding ->
         when (uiState) {
             is TedTalksUiState.Loading -> LoadingPane(Modifier.padding(innerPadding))

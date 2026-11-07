@@ -25,6 +25,9 @@ class PipAspectTest {
     fun theBandEdgesAreAccepted() {
         assertEquals(239 to 100, pipAspect(239, 100))
         assertEquals(100 to 239, pipAspect(100, 239))
+        // Exactly 2.39:1 keeps its own numbers; only past the edge is it clamped.
+        assertEquals(478 to 200, pipAspect(478, 200))
+        assertEquals(239 to 100, pipAspect(240, 100))
     }
 
     @Test

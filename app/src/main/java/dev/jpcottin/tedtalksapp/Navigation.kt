@@ -21,11 +21,13 @@ import androidx.navigation3.runtime.rememberNavBackStack
 import androidx.navigation3.ui.NavDisplay
 import dev.jpcottin.tedtalksapp.ui.main.EmptyDetailPlaceholder
 import dev.jpcottin.tedtalksapp.ui.main.LogDeviceTraits
+import dev.jpcottin.tedtalksapp.ui.main.LogSpatialTraits
 import dev.jpcottin.tedtalksapp.ui.main.TalkDetailPane
 import dev.jpcottin.tedtalksapp.ui.main.isFarViewing
 import dev.jpcottin.tedtalksapp.ui.main.TalkListPane
 import dev.jpcottin.tedtalksapp.ui.main.TedTalksUiState
 import dev.jpcottin.tedtalksapp.ui.main.TedTalksViewModel
+import dev.jpcottin.tedtalksapp.ui.main.isXrDevice
 
 @OptIn(ExperimentalMaterial3AdaptiveApi::class)
 @Composable
@@ -33,6 +35,7 @@ fun MainNavigation(viewModel: TedTalksViewModel) {
     val backStack = rememberNavBackStack(TalksList)
     val context = LocalContext.current
     LogDeviceTraits()
+    LogSpatialTraits()
     // Viewed from a distance (TV): keep content inside the overscan-safe area.
     val isFarViewing = isFarViewing()
 
@@ -87,6 +90,7 @@ fun MainNavigation(viewModel: TedTalksViewModel) {
                     onRefreshErrorShown = viewModel::clearRefreshError,
                     includeAudio = includeAudio,
                     onIncludeAudioChange = viewModel::setIncludeAudio,
+                    showSpaceToggle = isXrDevice(),
                 )
             }
             entry<TalkDetail>(
