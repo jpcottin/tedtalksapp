@@ -9,7 +9,6 @@ import androidx.compose.ui.test.performClick
 import dev.jpcottin.tedtalksapp.data.TalkItem
 import dev.jpcottin.tedtalksapp.data.TedTalksRepository
 import dev.jpcottin.tedtalksapp.theme.TedTalksTheme
-import androidx.test.espresso.Espresso
 import androidx.xr.compose.platform.SpatialConfiguration
 import dev.jpcottin.tedtalksapp.ui.main.TedTalksViewModel
 import org.junit.Assert.assertNull
@@ -93,7 +92,11 @@ class MainNavigationTest {
         composeTestRule.waitForIdle()
         composeTestRule.onNodeWithText("Bob's description.").assertIsDisplayed()
 
-        Espresso.pressBack()
+        // Through the dispatcher, not a key event: Espresso.pressBack() needs
+        // window focus, which a system dialog can hold on a cold emulator.
+        composeTestRule.runOnUiThread {
+            composeTestRule.activity.onBackPressedDispatcher.onBackPressed()
+        }
         composeTestRule.waitForIdle()
 
         // Back must dismiss the detail entry and land on the list, not finish
