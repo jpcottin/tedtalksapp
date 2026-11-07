@@ -19,7 +19,10 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.platform.LocalContext
 import dev.jpcottin.tedtalksapp.data.DefaultTedTalksRepository
 import dev.jpcottin.tedtalksapp.data.PreferencesTalkSourceSettings
+import dev.jpcottin.tedtalksapp.ui.main.CinemaHostScope
+import dev.jpcottin.tedtalksapp.ui.main.SpatialMainWindow
 import dev.jpcottin.tedtalksapp.ui.main.TedTalksViewModel
+import dev.jpcottin.tedtalksapp.ui.main.rememberIsAdditiveDisplay
 
 @SuppressLint("Instantiatable")
 class MainActivity : ComponentActivity() {
@@ -44,9 +47,15 @@ class MainActivity : ComponentActivity() {
           )
         },
       )
-      TedTalksTheme {
+      TedTalksTheme(additiveDisplay = rememberIsAdditiveDisplay()) {
+        // Android XR Full Space only: the window becomes a panel in the scene, and the
+        // cinema a player asks for opens from it. Elsewhere, and in Home Space, neither
+        // changes anything.
+        SpatialMainWindow()
         Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
-          MainNavigation(viewModel)
+          CinemaHostScope {
+            MainNavigation(viewModel)
+          }
         }
       }
     }

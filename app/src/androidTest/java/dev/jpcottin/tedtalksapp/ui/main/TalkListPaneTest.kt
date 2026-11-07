@@ -89,15 +89,19 @@ class TalkListPaneTest {
 
     @Test
     fun success_pullingDownFiresRefresh() {
+        // A touch device: on the TV the suite also runs on there is no pull to make.
+        ComposeUiFlags.isMediaQueryIntegrationEnabled = true
         var refreshed = false
         composeTestRule.setContent {
-            TalkListPane(
-                uiState = TedTalksUiState.Success(talks),
-                selectedTalkId = null,
-                onTalkClick = {},
-                onRetry = {},
-                onRefresh = { refreshed = true },
-            )
+            CompositionLocalProvider(LocalUiMediaScope provides TouchScope) {
+                TalkListPane(
+                    uiState = TedTalksUiState.Success(talks),
+                    selectedTalkId = null,
+                    onTalkClick = {},
+                    onRetry = {},
+                    onRefresh = { refreshed = true },
+                )
+            }
         }
 
         // A short flick stays under the pull threshold; drag most of the pane.
@@ -135,6 +139,32 @@ class TalkListPaneTest {
     }
 
     @Test
+    fun spaceToggle_offersFullSpaceWhenAskedFor() {
+        composeTestRule.setContent {
+            TalkListPane(
+                uiState = TedTalksUiState.Success(talks),
+                selectedTalkId = null,
+                onTalkClick = {},
+                onRetry = {},
+                showSpaceToggle = true,
+            )
+        }
+        // Outside Full Space (any device here, an XR one in Home Space) it offers the way in.
+        composeTestRule.onNodeWithTag("space_toggle", useUnmergedTree = true)
+            .assertIsDisplayed()
+            .assertHasClickAction()
+        composeTestRule.onAllNodesWithContentDescription("Full Space").assertCountEquals(1)
+    }
+
+    @Test
+    fun spaceToggle_isAbsentByDefault() {
+        composeTestRule.setContent {
+            TalkListPane(uiState = TedTalksUiState.Success(talks), selectedTalkId = null, onTalkClick = {}, onRetry = {})
+        }
+        composeTestRule.onNodeWithTag("space_toggle").assertDoesNotExist()
+    }
+
+    @Test
     fun audioTalks_wearABadgeInTheList() {
         val mixed = talks + TalkItem("3", "A podcast episode", "Carol", "desc", "May 3, 2025", "41:18", "", "", "https://example.com/e.mp3", isAudio = true)
         composeTestRule.setContent {
@@ -166,6 +196,18 @@ class TalkListPaneTest {
         composeTestRule.waitForIdle()
         assertFalse("a pull on a D-pad device must not refresh", refreshed)
         composeTestRule.onNodeWithText("First talk").assertIsDisplayed()
+    }
+
+    /** A phone held in the hand: a finger for a pointer. */
+    private object TouchScope : UiMediaScope {
+        override val windowWidth = 412.dp
+        override val windowHeight = 915.dp
+        override val windowPosture = UiMediaScope.Posture.Flat
+        override val pointerPrecision = UiMediaScope.PointerPrecision.Coarse
+        override val keyboardKind = UiMediaScope.KeyboardKind.Virtual
+        override val hasMicrophone = true
+        override val hasCamera = true
+        override val viewingDistance = UiMediaScope.ViewingDistance.Near
     }
 
     /** A far-viewed device driven by a remote: no pointer at all. */

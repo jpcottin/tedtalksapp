@@ -70,10 +70,13 @@ class TalkDetailPaneTest {
 
     @Test
     fun backButton_visibilityFollowsParameter() {
+        var showBackButton by mutableStateOf(false)
         composeTestRule.setContent {
-            TalkDetailPane(talk = talk, showBackButton = false, onBack = {})
+            TalkDetailPane(talk = talk, showBackButton = showBackButton, onBack = {})
         }
         composeTestRule.onNodeWithContentDescription("Back").assertDoesNotExist()
+        showBackButton = true
+        composeTestRule.onNodeWithContentDescription("Back").assertIsDisplayed()
     }
 
     @Test

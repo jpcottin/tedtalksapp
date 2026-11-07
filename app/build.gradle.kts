@@ -135,6 +135,12 @@ dependencies {
   implementation(libs.androidx.compose.material3.adaptive.layout)
   implementation(libs.androidx.compose.material3.adaptive.navigation3)
 
+  // Android XR: the window as a spatial panel, the app bar orbiter, the cinema dialog
+  implementation(libs.androidx.xr.compose)
+  // The XR device's own extensions library, for R8 to see the types SceneCore implements;
+  // without it the release build lost Consumer.accept and died on launch on an XR device.
+  compileOnly(libs.android.extensions.xr)
+
   // Media3 ExoPlayer
   implementation(libs.androidx.media3.exoplayer)
   implementation(libs.androidx.media3.ui)

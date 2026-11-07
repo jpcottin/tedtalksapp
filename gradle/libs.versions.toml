@@ -23,6 +23,8 @@ screenshot = "0.0.1-alpha14"
 benchmark = "1.5.0-alpha06"
 profileinstaller = "1.4.1"
 uiautomator = "2.3.0"
+xrCompose = "1.0.0-beta02"
+xrExtensions = "1.4.0"
 
 [libraries]
 mockk = { module = "io.mockk:mockk", version.ref = "mockk" }
@@ -62,6 +64,8 @@ screenshot-validation-api = { group = "com.android.tools.screenshot", name = "sc
 androidx-benchmark-macro-junit4 = { module = "androidx.benchmark:benchmark-macro-junit4", version.ref = "benchmark" }
 androidx-profileinstaller = { module = "androidx.profileinstaller:profileinstaller", version.ref = "profileinstaller" }
 androidx-test-uiautomator = { module = "androidx.test.uiautomator:uiautomator", version.ref = "uiautomator" }
+androidx-xr-compose = { module = "androidx.xr.compose:compose", version.ref = "xrCompose" }
+android-extensions-xr = { module = "com.android.extensions.xr:extensions-xr", version.ref = "xrExtensions" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "androidGradlePlugin" }
