@@ -93,6 +93,52 @@ class TedTalksViewModelTest {
     }
 
     @Test
+    fun loadTalks_listWithoutTheSelectedTalk_clearsTheSelectionAndPausesThePlayer() = runTest {
+        val player = mockk<ExoPlayer>(relaxed = true)
+        val repo = FakeTedTalksRepository(Result.success(sampleTalks))
+        val viewModel = TedTalksViewModel(repo) { player }
+        viewModel.selectTalk("2")
+        viewModel.getExoPlayer(mockk(relaxed = true), "https://cdn/b.mp3")
+
+        repo.response = Result.success(listOf(sampleTalks[0]))      // B left the feed
+        viewModel.loadTalks()
+
+        assertNull(viewModel.selectedTalkId.value)
+        verify(exactly = 1) { player.pause() }
+    }
+
+    @Test
+    fun loadTalks_listStillHoldingTheSelectedTalk_keepsTheSelectionAndThePlayback() = runTest {
+        val player = mockk<ExoPlayer>(relaxed = true)
+        val repo = FakeTedTalksRepository(Result.success(sampleTalks))
+        val viewModel = TedTalksViewModel(repo) { player }
+        viewModel.selectTalk("2")
+        viewModel.getExoPlayer(mockk(relaxed = true), "https://cdn/b.mp3")
+
+        repo.response = Result.success(sampleTalks.reversed())       // reordered, still there
+        viewModel.loadTalks()
+
+        assertEquals("2", viewModel.selectedTalkId.value)
+        verify(exactly = 0) { player.pause() }
+    }
+
+    @Test
+    fun setIncludeAudio_droppingThePlayingTalk_stopsItsPlayback() = runTest {
+        val player = mockk<ExoPlayer>(relaxed = true)
+        val repo = FakeTedTalksRepository(Result.success(sampleTalks))
+        val viewModel = TedTalksViewModel(repo) { player }
+        viewModel.selectTalk("2")
+        viewModel.getExoPlayer(mockk(relaxed = true), "https://cdn/b.mp3")
+
+        // The other choice of sources has no row for the talk that was playing.
+        repo.response = Result.success(listOf(sampleTalks[0]))
+        viewModel.setIncludeAudio(!viewModel.includeAudio.value)
+
+        assertNull(viewModel.selectedTalkId.value)
+        verify(exactly = 1) { player.pause() }
+    }
+
+    @Test
     fun fetchFailure_exposesErrorState() = runTest {
         val repo = FakeTedTalksRepository(Result.failure(RuntimeException("boom")))
 
