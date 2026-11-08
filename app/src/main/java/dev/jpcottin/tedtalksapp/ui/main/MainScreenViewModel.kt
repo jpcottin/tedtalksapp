@@ -72,7 +72,15 @@ class TedTalksViewModel(
                     // A feed with no talks is a failure the user can act on (Try again), not
                     // a blank grid; an empty refresh keeps the list and reports instead.
                     when {
-                        talks.isNotEmpty() -> _uiState.value = TedTalksUiState.Success(talks)
+                        talks.isNotEmpty() -> {
+                            _uiState.value = TedTalksUiState.Success(talks)
+                            // The new list may have no row for the talk open in the detail
+                            // pane (the Audio choice turned off under an audio talk, a live
+                            // feed that moved on): the pane goes blank, so the selection and
+                            // its playback must not outlive the row.
+                            val selected = _selectedTalkId.value
+                            if (selected != null && talks.none { it.id == selected }) clearSelection()
+                        }
                         hasTalks -> _refreshError.value = EMPTY_FEED_MESSAGE
                         else -> _uiState.value = TedTalksUiState.Error(EMPTY_FEED_MESSAGE)
                     }
