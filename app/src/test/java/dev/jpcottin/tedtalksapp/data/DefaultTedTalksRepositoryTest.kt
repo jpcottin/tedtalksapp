@@ -106,6 +106,44 @@ class DefaultTedTalksRepositoryTest {
     }
 
     @Test
+    fun fetchTalks_withAudio_aTalkInBothFeedsListsOnceAsItsVideo() = runTest {
+        // The live feed republishes a bundled talk as audio under the same guid, and
+        // both feeds have an item with nothing to key it by, which the parser keys by
+        // position: the grid would meet each id twice and throw.
+        val liveFeed = """
+            <rss xmlns:itunes="http://www.itunes.com/dtds/podcast-1.0.dtd">
+              <channel>
+                <itunes:author>TED</itunes:author>
+                <item><title>New video, again as audio | Victor</title><guid>v-new</guid><pubDate>Sun, 01 Nov 2026 07:00:00 GMT</pubDate>
+                  <enclosure url="https://example.com/new.mp3" type="audio/mpeg"/></item>
+                <item><title>Between the videos | Alan</title><guid>a-mid</guid><pubDate>Wed, 01 Jan 2025 07:00:00 GMT</pubDate>
+                  <enclosure url="https://example.com/mid.mp3" type="audio/mpeg"/></item>
+                <item><title>Nothing to key by | Nobody</title><description>No guid, link or media</description></item>
+              </channel>
+            </rss>
+        """.trimIndent()
+        val bundledWithAnUnkeyedItem = bundledVideoFeed.replace(
+            "</channel>",
+            "<item><title>Also nothing to key by | Nobody</title></item></channel>",
+        )
+        server.enqueue(MockResponse().setResponseCode(200).setBody(liveFeed))
+        val repo = DefaultTedTalksRepository(
+            feedUrl = server.url("/feed").toString(),
+            client = client,
+            bundledFeed = { bundledWithAnUnkeyedItem.byteInputStream() },
+        )
+
+        val talks = repo.fetchTalks(includeAudio = true).getOrThrow()
+
+        assertEquals(talks.map { it.id }.distinct(), talks.map { it.id })
+        val newest = talks.single { it.id == "v-new" }
+        assertEquals("https://example.com/new.mp4", newest.mediaUrl)   // the bundled video, not the audio copy
+        assertEquals(listOf("a-mid"), talks.filter { it.isAudio }.map { it.id })
+        // Third in each feed, so both parse to "item-2": the bundled one stays.
+        assertEquals("Also nothing to key by", talks.single { it.id == "item-2" }.title)
+    }
+
+    @Test
     fun fetchTalks_withAudio_parsesTheBundledFeedOnce() = runTest {
         var opened = 0
         val repo = DefaultTedTalksRepository(

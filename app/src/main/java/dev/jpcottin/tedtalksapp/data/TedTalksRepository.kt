@@ -49,7 +49,7 @@ class DefaultTedTalksRepository(
             if (bundled != null && !includeAudio) return@withContext Result.success(bundled)
             val live = fetchLive()
             // Two sources: by date, the newest first. One source keeps its feed's order.
-            Result.success(if (bundled == null) live else (bundled + live).sortedByDescending { it.publishedMillis })
+            Result.success(if (bundled == null) live else merge(bundled, live))
         } catch (e: FeedException) {
             Result.failure(e)
         } catch (e: IOException) {
@@ -57,6 +57,17 @@ class DefaultTedTalksRepository(
         } catch (e: XmlPullParserException) {
             Result.failure(FeedException.Malformed(e))
         }
+    }
+
+    /**
+     * One row per talk. The list keys its rows by id, and a key it meets twice
+     * crashes it: a guid both feeds carry (a talk republished as audio), or the
+     * positional id the parser falls back to in each feed. The bundled video is
+     * the better copy, so it stays and the live one goes.
+     */
+    private fun merge(bundled: List<TalkItem>, live: List<TalkItem>): List<TalkItem> {
+        val bundledIds = bundled.mapTo(HashSet()) { it.id }
+        return (bundled + live.filterNot { it.id in bundledIds }).sortedByDescending { it.publishedMillis }
     }
 
     private suspend fun fetchLive(): List<TalkItem> {
