@@ -173,9 +173,15 @@ class RssFeedParser {
     }
 
     private fun stripHtml(html: String): String {
+        // The live feed's host appends its notice to every episode behind a rule
+        // ("<hr><p>Hosted on Acast. See acast.com/privacy …</p>"): it is not the
+        // talk's, so it goes. Paragraph and line breaks stay breaks, one blank line
+        // between paragraphs, instead of running "…their people.Learn more" together.
         // One pass over the entities: replacing "&amp;" first would re-create "&lt;"
         // from "&amp;lt;" and decode it a second time.
-        return html.replace(Regex("<[^>]*>"), "")
+        return html.replace(HOST_FOOTER, "")
+            .replace(BLOCK_END, "\n")
+            .replace(Regex("<[^>]*>"), "")
             .replace(ENTITY) { m ->
                 val body = m.groupValues[1]
                 when {
@@ -184,13 +190,18 @@ class RssFeedParser {
                     else -> NAMED_ENTITIES[body] ?: m.value
                 }
             }
-            .trim()
+            .lines()
+            .map { it.trim() }
+            .filter { it.isNotEmpty() }
+            .joinToString("\n\n")
     }
 
     private fun codePoint(code: Int): String =
         if (Character.isValidCodePoint(code)) String(Character.toChars(code)) else "\uFFFD"
 
     private companion object {
+        val HOST_FOOTER = Regex("<hr\\b[^>]*>.*", setOf(RegexOption.IGNORE_CASE, RegexOption.DOT_MATCHES_ALL))
+        val BLOCK_END = Regex("</p>|<br\\s*/?>|</li>", RegexOption.IGNORE_CASE)
         val SPEAKER_NOTE = Regex("""^(.*\S)\s+(\([^()]*\))$""")
         val ENTITY = Regex("&(#x[0-9a-fA-F]+|#[0-9]+|[a-zA-Z]+);")
         val NAMED_ENTITIES = mapOf(

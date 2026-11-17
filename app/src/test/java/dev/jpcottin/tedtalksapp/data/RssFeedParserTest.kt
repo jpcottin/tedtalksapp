@@ -236,7 +236,7 @@ class RssFeedParserTest {
         """.trimIndent()
         val talks = parseString(xml)
         assertEquals(1, talks.size)
-        assertEquals("This is a bold description.  Also with some & stuff.", talks[0].description)
+        assertEquals("This is a bold description.\n\nAlso with some & stuff.", talks[0].description)
     }
 
     private fun pubDateOf(raw: String, locale: Locale): String {
@@ -478,5 +478,32 @@ class RssFeedParserTest {
     fun parse_htmlDescription_doesNotDoubleDecode() {
         val talk = parseString(feed("<item><title>T</title><description><![CDATA[&amp;lt;b&amp;gt;]]></description></item>")).single()
         assertEquals("&lt;b&gt;", talk.description)
+    }
+
+    // The live feed's description, as it comes: two paragraphs, a break between
+    // them, then the host's notice behind a rule.
+    private fun liveDescription(): String = parseString(feed(
+        "<item><title>T</title><description><![CDATA[<p>Shawn and Adam talk about beliefs.</p><br>" +
+            "<p>Learn more at <u><a href=\"https://example.com\">example.com</a></u></p>" +
+            "<hr><p style='color:grey; font-size:0.75em;'> Hosted on Acast. See " +
+            "<a style='color:grey;' href='https://acast.com/privacy'>acast.com/privacy</a> for more information.</p>]]></description></item>",
+    )).single().description
+
+    @Test
+    fun parse_htmlDescription_dropsTheHostsNoticeBehindTheRule() {
+        val description = liveDescription()
+        assertFalse(description, description.contains("Acast"))
+        assertTrue(description, description.endsWith("Learn more at example.com"))
+    }
+
+    @Test
+    fun parse_htmlDescription_keepsParagraphsApart() {
+        assertEquals("Shawn and Adam talk about beliefs.\n\nLearn more at example.com", liveDescription())
+    }
+
+    @Test
+    fun parse_htmlDescription_withoutBreaksIsOneParagraph() {
+        val talk = parseString(feed("<item><title>T</title><description><![CDATA[A talk, (Plus: a frog.)]]></description></item>")).single()
+        assertEquals("A talk, (Plus: a frog.)", talk.description)
     }
 }
