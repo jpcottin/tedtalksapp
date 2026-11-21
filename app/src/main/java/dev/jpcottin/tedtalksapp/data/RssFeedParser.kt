@@ -99,7 +99,11 @@ class RssFeedParser {
         // bare bar ("... ghost town |") names none either. The podcast's series
         // episodes have a third part, "Title | Speaker | Your Body on Tech": the series
         // goes with the talk, in brackets, never in the speaker's place.
-        val parts = title.trim().removeSuffix("|").trim().split(" | ").map { it.trim() }
+        val written = title.trim().removeSuffix("|").trim().split(" | ").map { it.trim() }
+        // A pick from another show ends with where it comes from, "Title | from Fixable":
+        // that is no speaker. It goes with the talk, in brackets, like a series.
+        val source = written.last().takeIf { written.size >= 2 && it.startsWith("from ", ignoreCase = true) }
+        val parts = if (source != null) written.dropLast(1) else written
         val speakerAuthor = author.trim().takeUnless { it.equals(channelAuthor, ignoreCase = true) }.orEmpty()
         var cleanSpeaker = when {
             speakerAuthor.isNotEmpty() -> speakerAuthor
@@ -114,6 +118,7 @@ class RssFeedParser {
             parts.first().equals(cleanSpeaker, ignoreCase = true) -> parts.drop(1).joinToString(" | ")
             else -> parts[1]
         }
+        if (source != null) cleanTitle = "$cleanTitle ($source)"
         // "Kaeli Swift (re-release)": the note belongs to the talk, not to the speaker.
         SPEAKER_NOTE.find(cleanSpeaker)?.let { m ->
             cleanSpeaker = m.groupValues[1]
