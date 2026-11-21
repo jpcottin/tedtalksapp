@@ -455,6 +455,21 @@ class RssFeedParserTest {
     }
 
     @Test
+    fun parse_aPickFromAnotherShow_namesThatShowNotASpeaker() {
+        // "Sunday Pick" episodes end with the show they come from: "Title | from Fixable".
+        val talk = parseString(feed("<item><title>Sunday Pick: Do all my friends secretly hate me? | from Corner Piece</title></item>")).single()
+        assertEquals("", talk.speaker)
+        assertEquals("Sunday Pick: Do all my friends secretly hate me? (from Corner Piece)", talk.title)
+    }
+
+    @Test
+    fun parse_aSpeakerThenTheShow_keepsTheSpeaker() {
+        val talk = parseString(feed("<item><title>How to talk to anyone | Celeste Headlee | from TED Health</title></item>")).single()
+        assertEquals("Celeste Headlee", talk.speaker)
+        assertEquals("How to talk to anyone (from TED Health)", talk.title)
+    }
+
+    @Test
     fun parse_titleEndingInABar_namesNoSpeakerAndDropsTheBar() {
         val talk = parseString(feed("<item><title>How to keep your hometown from becoming a ghost town |</title></item>")).single()
         assertEquals("How to keep your hometown from becoming a ghost town", talk.title)
