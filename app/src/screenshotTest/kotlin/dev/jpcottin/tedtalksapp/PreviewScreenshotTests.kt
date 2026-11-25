@@ -34,7 +34,7 @@ private class TabletopMediaScope(
     override val windowWidth: Dp,
     override val windowHeight: Dp,
 ) : UiMediaScope {
-    override val windowPosture = UiMediaScope.Posture.Tabletop
+    override val windowPosture = UiMediaScope.WindowPosture(listOf(UiMediaScope.WindowFold(UiMediaScope.FoldState.HalfOpened, UiMediaScope.FoldOrientation.Horizontal)))
     override val pointerPrecision = UiMediaScope.PointerPrecision.Coarse
     override val keyboardKind = UiMediaScope.KeyboardKind.Virtual
     override val hasMicrophone = true

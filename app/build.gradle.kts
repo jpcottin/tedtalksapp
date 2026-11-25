@@ -23,7 +23,12 @@ fun signingValue(propKey: String, envKey: String): String? =
 
 android {
     namespace = "dev.jpcottin.tedtalksapp"
-    compileSdk = 37
+    // Compose 1.13 needs the 37.1 minor release of the platform.
+    compileSdk {
+        version = release(37) {
+            minorApiLevel = 1
+        }
+    }
     defaultConfig {
         applicationId = "dev.jpcottin.tedtalksapp"
         minSdk = 24

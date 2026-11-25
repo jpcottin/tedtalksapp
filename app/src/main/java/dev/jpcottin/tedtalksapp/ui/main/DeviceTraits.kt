@@ -52,7 +52,7 @@ fun hasFinePointer(): Boolean =
 /** Foldable half-opened with the hinge across the middle, like a laptop. */
 @Composable
 fun isTabletopPosture(): Boolean =
-    mediaQueryOr({ false }) { windowPosture == UiMediaScope.Posture.Tabletop }
+    mediaQueryOr({ false }) { windowPosture.isTabletop }
 
 /** Logs the resolved traits whenever they change; handy when reading emulator logcat in CI. */
 @Composable
