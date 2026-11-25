@@ -202,7 +202,7 @@ class TalkListPaneTest {
     private object TouchScope : UiMediaScope {
         override val windowWidth = 412.dp
         override val windowHeight = 915.dp
-        override val windowPosture = UiMediaScope.Posture.Flat
+        override val windowPosture = UiMediaScope.WindowPosture(emptyList())
         override val pointerPrecision = UiMediaScope.PointerPrecision.Coarse
         override val keyboardKind = UiMediaScope.KeyboardKind.Virtual
         override val hasMicrophone = true
@@ -214,7 +214,7 @@ class TalkListPaneTest {
     private object DpadScope : UiMediaScope {
         override val windowWidth = 960.dp
         override val windowHeight = 540.dp
-        override val windowPosture = UiMediaScope.Posture.Flat
+        override val windowPosture = UiMediaScope.WindowPosture(emptyList())
         override val pointerPrecision = UiMediaScope.PointerPrecision.None
         override val keyboardKind = UiMediaScope.KeyboardKind.None
         override val hasMicrophone = false

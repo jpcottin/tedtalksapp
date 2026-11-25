@@ -243,7 +243,8 @@ class TalkDetailPaneTest {
         override val windowHeight: Dp,
     ) : UiMediaScope {
         override val windowPosture =
-            if (tabletop) UiMediaScope.Posture.Tabletop else UiMediaScope.Posture.Flat
+            if (tabletop) UiMediaScope.WindowPosture(listOf(UiMediaScope.WindowFold(UiMediaScope.FoldState.HalfOpened, UiMediaScope.FoldOrientation.Horizontal)))
+            else UiMediaScope.WindowPosture(emptyList())
         override val pointerPrecision = UiMediaScope.PointerPrecision.Coarse
         override val keyboardKind = UiMediaScope.KeyboardKind.Virtual
         override val hasMicrophone = true

@@ -106,7 +106,7 @@ The API is gated behind `ComposeUiFlags.isMediaQueryIntegrationEnabled`. Compose
 - `TedTalksStyles.focusRing` — a 3dp border that is transparent at rest, animates to the brand red when focused, and shows at half opacity on mouse hover.
 - `TedTalksStyles.talkListItem` — shape, content padding, and hover / press / selected backgrounds for a row of the talk list.
 
-The list row applies both with `Modifier.styleable(styleState, focusRing, talkListItem)`, where the `StyleState` comes from `rememberUpdatedStyleState(interactionSource) { it.isSelected = isSelected }` and the same `InteractionSource` is handed to `selectable` (so a screen reader hears which talk is open). Material buttons don't take a `Style` parameter, so `Modifier.focusRing(interactionSource, shape)` in `FocusSupport.kt` attaches the ring through `Modifier.styleable` using the `InteractionSource` passed to the button. Both APIs need `compileSdk 37` and Compose 1.12, and are opted in project-wide in `app/build.gradle.kts`.
+The list row applies both with `Modifier.styleable(styleState, focusRing, talkListItem)`, where the `StyleState` comes from `rememberUpdatedStyleState(interactionSource) { it.isSelected = isSelected }` and the same `InteractionSource` is handed to `selectable` (so a screen reader hears which talk is open). Material buttons don't take a `Style` parameter, so `Modifier.focusRing(interactionSource, shape)` in `FocusSupport.kt` attaches the ring through `Modifier.styleable` using the `InteractionSource` passed to the button. Both APIs need `compileSdk 37` and Compose 1.12 (the app builds with Compose 1.13, which needs `compileSdk 37.1`), and are opted in project-wide in `app/build.gradle.kts`.
 
 ### Edge-to-edge
 
@@ -246,7 +246,7 @@ Every emulator-runner leg boots with full diagnostics (`-verbose -show-kernel -d
 
 ### Prerequisites
 - Android Studio Otter 3+ (for full IDE integration with the Compose Preview Screenshot Testing tool — optional, the underlying Gradle tasks work without it).
-- Android SDK 37 (`compileSdk` 37 for the latest adaptive and XR APIs; `targetSdk` 36).
+- Android SDK 37.1 (`compileSdk` 37.1: the latest adaptive and XR APIs need 37, Compose 1.13 its 37.1 minor release; `targetSdk` 36).
 - JDK 17.
 
 ### Build & Run
